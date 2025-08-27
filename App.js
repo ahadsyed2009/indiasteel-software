@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import HomeScreen from './components/HomeScreen'
+import AddCustomer from './components/AddCustomer'
 
 
 const Drawer = createDrawerNavigator();
@@ -15,6 +16,7 @@ const Drawer = createDrawerNavigator();
         screenOptions={{ headerShown: false }}  // 🔥 hides the header
       >
         <Drawer.Screen name="Home" component={HomeScreen} />
+        <Drawer.Screen name="AddCustomer" component={AddCustomer} />
       </Drawer.Navigator>
     </NavigationContainer>
   );

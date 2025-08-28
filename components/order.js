@@ -6,102 +6,139 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  FlatList,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
+import { useContex } from "./context";
 import { useNavigation } from "@react-navigation/native";
+import AntDesign from '@expo/vector-icons/AntDesign';
+import { db } from '../firebase';
+import { ref, set} from 'firebase/database';
+
 
 export default function OrdersPage() {
-  const navigation = useNavigation();
+  const {
+    customers,
+    phone,
+    customer,
+    setPhone,
+    setCustomer,
+    driverPhone,
+    setDriverPhone,
+    orderType,
+    setOrderType,
+    cementBrand,
+    setCementBrand,
+    cementQty,
+    setCementQty,
+    steelBrand,
+    setSteelBrand,
+    steelQty,
+    setSteelQty,
+    distance,
+    setDistance,
+    searchText,
+    setSearchText,
+    getLoadingCharges,
+    getTransportCharges,
+    resetForm
+  } = useContex();
+ const navigation = useNavigation();
+  
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
 
-  const [customer, setCustomer] = useState("");
-  const [phone, setPhone] = useState("");
-  const [driverPhone, setDriverPhone] = useState("");
-  const [orderType, setOrderType] = useState("cement");
-
-  const [cementBrand, setCementBrand] = useState("");
-  const [steelBrand, setSteelBrand] = useState("");
-  const [cementQty, setCementQty] = useState("");
-  const [steelQty, setSteelQty] = useState(""); // ✅ in KG now
-  const [distance, setDistance] = useState("");
-
-  const resetForm = () => {
-    setCustomer("");
-    setPhone("");
-    setDriverPhone("");
-    setOrderType("cement");
-    setCementBrand("");
-    setSteelBrand("");
-    setCementQty("");
-    setSteelQty("");
-    setDistance("");
-  };
-
-  // ✅ Loading charges
-  const getLoadingCharges = (steel, cement) => {
-    return (parseInt(steel || 0) * 20) + (parseInt(cement || 0) * 10);
-  };
-
-  // ✅ Transport charges (steel in KG, cement in bags → 50kg each)
-  const getTransportCharges = (steel, cement, km) => {
-    const steelKg = parseInt(steel || 0); // ✅ already in KG
-    const cementKg = parseInt(cement || 0) * 50;
-    const totalKg = steelKg + cementKg;
-
-    if (!km || totalKg === 0) return 0;
-
-    let ratePer1000 = 0;
-    if (km <= 4) {
-      ratePer1000 = 500;
-    } else if (km > 4 && km <= 10) {
-      ratePer1000 = 650;
-    } else {
-      ratePer1000 = 850;
-    }
-
-    return Math.ceil(totalKg / 1000) * ratePer1000;
-  };
-
-  const handlePlaceOrder = () => {
-    const newOrder = {
-      id: Date.now(),
-      customer,
-      phone,
-      driverPhone,
-      orderType,
-      steelBrand,
-      cementBrand,
-      steelQty,   // ✅ in KG
-      cementQty,  // ✅ in Bags
-      distance,
-      loading: getLoadingCharges(steelQty, cementQty),
-      transport: getTransportCharges(steelQty, cementQty, parseFloat(distance)),
+   const handlePlaceOrder = () => {
+       const id = Date.now().toString();
+      const newOrder = {
+        id: Date.now(),
+        customer,
+        phone,
+        driverPhone,
+        orderType,
+        steelBrand,
+        cementBrand,
+        steelQty,
+        cementQty,
+        distance,
+  
+        loading: getLoadingCharges(steelQty, cementQty),
+        transport: getTransportCharges(steelQty, cementQty, distance),
+      };
+      navigation.navigate("Home", { newOrder });
+      set(ref(db, 'orders/' + id), newOrder)
+      .then(() => {
+        resetForm();
+      })
+      .catch((error) => {
+        Alert.alert('Error', error.message);
+      });
+  
+     
+      resetForm();
     };
 
-    navigation.navigate("Home", { newOrder });
-    resetForm();
+  const handleSearchChange = (text) => {
+    setSearchText(text);
+    setCustomer(text);
+
+
+    if (text.trim().length > 0) {
+      const filtered = customers.filter((c) =>
+        c.name.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredCustomers(filtered);
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectCustomer = (name) => {
+    setSearchText(name);
+    setCustomer(name);
+    setShowSuggestions(false);
   };
 
   return (
     <ScrollView style={styles.container}>
+      <View style={{flexDirection:'row',marginTop:15,}}>
+      <TouchableOpacity onPress={() => navigation.navigate('Home')} style={{marginRight:10,}}>
+            <AntDesign name="arrowleft" size={24} color="black" />
+          </TouchableOpacity>
       <Text style={styles.header}>Place Order</Text>
-
+      </View>
       {/* Customer Name */}
       <TextInput
         placeholder="Customer Name"
         style={styles.input}
-        value={customer}
-        onChangeText={setCustomer}
+        value={searchText}
+        onChangeText={handleSearchChange}
       />
+      {showSuggestions && (
+        <FlatList
+          keyboardShouldPersistTaps="handled"
+          data={filteredCustomers}
+          keyExtractor={(item) => item.id.toString()}
+          style={styles.suggestionsList}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.suggestionItem}
+              onPress={() => selectCustomer(item.name)}
+            >
+              <Text>{item.name}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      )}
 
-      {/* Customer Phone */}
       <TextInput
-        placeholder="Customer Phone"
         style={styles.input}
-        keyboardType="phone-pad"
+        placeholder="Phone"
         value={phone}
+        keyboardType="phone-pad"
         onChangeText={setPhone}
       />
-
       {/* Driver Phone */}
       <TextInput
         placeholder="Driver Phone"
@@ -164,7 +201,7 @@ export default function OrdersPage() {
           </Picker>
 
           <TextInput
-            placeholder="Steel Quantity (kg)" // ✅ changed label
+            placeholder="Steel Quantity (tons)"
             style={styles.input}
             keyboardType="numeric"
             value={steelQty}
@@ -191,7 +228,7 @@ export default function OrdersPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#F9FAFB" },
+  container: { flex: 1, padding: 20, backgroundColor: "#F9FAFB", },
   header: { fontSize: 22, fontWeight: "bold", marginBottom: 16 },
   label: { marginTop: 12, fontSize: 14, fontWeight: "600" },
   input: {
@@ -217,4 +254,17 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   buttonText: { color: "white", fontSize: 16, fontWeight: "600" },
+  suggestionsList: {
+    marginTop: 4,
+    backgroundColor: "#f9f9f9",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    maxHeight: 150,
+  },
+  suggestionItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
 });

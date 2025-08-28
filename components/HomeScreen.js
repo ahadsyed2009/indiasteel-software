@@ -14,31 +14,36 @@ import {
 import Entypo from "@expo/vector-icons/Entypo";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { Card } from "react-native-paper";
+import { Swipeable } from "react-native-gesture-handler";
+import { useContex } from "./context";
+
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const route = useRoute();
+const {
+    customers,
+    orders,
+    deleteOrder,
+    setOrders,
+  } = useContex();
+
 
   const [isEnabled, setIsEnabled] = useState(false);
   const toggleSwitch = () => setIsEnabled((previous) => !previous);
 
-  const [orders, setOrders] = useState([]);
+
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  // ✅ Get new order from OrdersPage
-  useEffect(() => {
-    if (route.params?.newOrder) {
-      setOrders((prev) => [route.params.newOrder, ...prev]);
-    }
-  }, [route.params?.newOrder]);
-
-  const deleteOrder = (id) => {
-    setOrders((prevOrders) => prevOrders.filter((order) => order.id !== id));
-    setModalVisible(false);
-  };
+ const renderRightActions = (id) => (
+    <TouchableOpacity
+      style={styles.deleteButton}
+      onPress={() => deleteOrder(id)}
+    >
+      <Text style={styles.deleteText}>Delete</Text>
+    </TouchableOpacity>
+  );
 
   const updateOrder = () => {
     setOrders((prevOrders) =>
@@ -107,7 +112,7 @@ export default function HomeScreen() {
             <Text style={styles.subtitle}>Active Suppliers</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>13</Text>
+            <Text style={styles.statValue}>{customers.length}</Text>
             <Text style={styles.subtitle}>Customers</Text>
           </View>
         </View>
@@ -119,17 +124,15 @@ export default function HomeScreen() {
         data={orders}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => openOrderDetails(item)}
-          >
-            <Card style={{ padding: 10 }}>
-              <Text style={{ fontWeight: "600" }}>{item.customer}</Text>
-              <Text style={{ color: "gray" }}>{item.phone}</Text>
-            </Card>
-          </TouchableOpacity>
+          <Swipeable renderRightActions={() => renderRightActions(item.id)}>
+            <TouchableOpacity style={styles.card}  onPress={() => openOrderDetails(item)}>
+              <Text style={styles.customerName}>{item.customer}</Text>
+              <Text style={styles.orderInfo}>{item.orderType}</Text>
+            </TouchableOpacity>
+          </Swipeable>
+
         )}
-        ListEmptyComponent={<Text>No orders yet.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>No orders yet.</Text>}
       />
 
       {/* ✅ Floating Plus Button */}
@@ -233,19 +236,19 @@ export default function HomeScreen() {
                   </>
                 ) : (
                   <>
-                    <Text>👤 Customer: {selectedOrder.customer}</Text>
-                    <Text>📞 Phone: {selectedOrder.phone}</Text>
-                    <Text>🚚 Driver Phone: {selectedOrder.driverPhone}</Text>
-                    <Text>🏗️ Type: {selectedOrder.orderType}</Text>
+                    <Text> Customer: {selectedOrder.customer}</Text>
+                    <Text> Phone: {selectedOrder.phone}</Text>
+                    <Text> Driver Phone: {selectedOrder.driverPhone}</Text>
+                    <Text> Type: {selectedOrder.orderType}</Text>
                     {selectedOrder.cementQty ? (
-                      <Text>🧱 Cement: {selectedOrder.cementQty} ({selectedOrder.cementBrand})</Text>
+                      <Text> Cement: {selectedOrder.cementQty} ({selectedOrder.cementBrand})</Text>
                     ) : null}
                     {selectedOrder.steelQty ? (
-                      <Text>🔩 Steel: {selectedOrder.steelQty} ({selectedOrder.steelBrand})</Text>
+                      <Text> Steel: {selectedOrder.steelQty} ({selectedOrder.steelBrand})</Text>
                     ) : null}
-                    <Text>📍 Distance: {selectedOrder.distance} km</Text>
-                    <Text>💰 Loading: ₹{selectedOrder.loading}</Text>
-                    <Text>🚛 Transport: ₹{selectedOrder.transport}</Text>
+                    <Text> Distance: {selectedOrder.distance} km</Text>
+                    <Text> Loading: ₹{selectedOrder.loading}</Text>
+                    <Text> Transport: ₹{selectedOrder.transport}</Text>
                   </>
                 )}
 
@@ -299,7 +302,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 12, paddingTop: 30 },
+  container: { flex: 1, padding: 12, paddingTop: 30 ,margin:10  },
   header: {
     flexDirection: "row",
     marginBottom: 16,
@@ -334,7 +337,29 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 18, fontWeight: "600", color: "#1F2937" },
   sectionTitle: { fontSize: 18, fontWeight: "bold", marginVertical: 10 },
-  card: { marginBottom: 10, borderRadius: 10 },
+
+  card: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  customerName: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  orderInfo: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 4,
+  },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
+    color: "#999",
+  },
   fab: {
     position: "absolute",
     right: 20,
@@ -343,6 +368,18 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     padding: 16,
     elevation: 5,
+  },
+   deleteButton: {
+    backgroundColor: 'red',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderRadius: 8,
+    height: 73,
+  },
+  deleteText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   modalBackground: {
     flex: 1,

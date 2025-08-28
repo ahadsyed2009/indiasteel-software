@@ -9,42 +9,15 @@ import {
   Alert 
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import Entypo from '@expo/vector-icons/Entypo';
+import { useContex } from './context';
 import { Ionicons } from '@expo/vector-icons';
-import {useNavigation} from '@react-navigation/native';
+import Entypo from '@expo/vector-icons/Entypo';
+import { useNavigation } from '@react-navigation/native';
 
 export default function AddCustomer() {
+  const { name, setName, phone, setPhone, customers, addCustomer, deleteCustomer } = useContex();  
 
-    const navigation = useNavigation();
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [customers, setCustomers] = useState([]);
-
-  const addCustomer = () => {
-    if (!name.trim()) {
-      Alert.alert("Validation Error", "Please enter customer name");
-      return;
-    }
-    if (!/^\d{10}$/.test(phone)) {
-      Alert.alert("Validation Error", "Phone number must be exactly 10 digits");
-      return;
-    }
-
-    const newCustomer = {
-      id: Date.now().toString(),
-      name,
-      phone,
-    };
-
-    setCustomers([...customers, newCustomer]);
-    setName('');
-    setPhone('');
-  };
-
-  const deleteCustomer = (id) => {
-    setCustomers(customers.filter((c) => c.id !== id));
-  };
-
+  const navigation = useNavigation();
   const renderRightActions = (id) => (
     <TouchableOpacity
       style={styles.deleteButton}
@@ -56,9 +29,10 @@ export default function AddCustomer() {
 
   return (
     <View style={styles.container}>
-     <View style={styles.header}>
+
+       <View style={styles.header}>
     <View style={{flexDirection:'row'}}>
-      <TouchableOpacity onPress={() => navigation.openDrawer()} style={{}}><Entypo name="menu" size={30} /></TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.openDrawer()} ><Entypo name="menu" size={30} /></TouchableOpacity>
       <View style={{ justifyContent:'flex-end', marginBottom:5,}}>
       <Text style={styles.title}> IndiaSteel </Text>
     </View>
@@ -96,7 +70,7 @@ export default function AddCustomer() {
           <Swipeable renderRightActions={() => renderRightActions(item.id)}>
             <View style={styles.customerCard}>
               <Text style={styles.customerName}>{item.name}</Text>
-              <Text style={styles.customerPhone}>📞 {item.phone}</Text>
+              <Text style={styles.customerPhone}>{item.phone}</Text>
             </View>
           </Swipeable>
         )}
@@ -108,9 +82,12 @@ export default function AddCustomer() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: 12,
     backgroundColor: '#f5f5f5',
+    paddingTop:30,
   },
+   header: { flexDirection: 'row',  marginBottom: 16 ,justifyContent: 'space-between',},
+   title: { fontSize: 18, fontWeight: 'bold', color: '#374151', },
   heading: {
     fontSize: 22,
     fontWeight: 'bold',
@@ -166,13 +143,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 80,
     borderRadius: 8,
-    marginVertical: 5,
+    height: 60,
   },
   deleteText: {
     color: '#fff',
     fontWeight: 'bold',
   },
-  header: { flexDirection: 'row',  marginBottom: 16 ,justifyContent: 'space-between',},
-   title: { fontSize: 18, fontWeight: 'bold', color: '#374151', },
- 
 });

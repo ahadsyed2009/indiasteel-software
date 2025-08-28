@@ -4,13 +4,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import HomeScreen from './components/HomeScreen'
 import AddCustomer from './components/AddCustomer'
-import OrdersPage from './components/Order'
+import OrdersPage from './components/order'
+import { CotextProvider } from './components/context';
 
 
 const Drawer = createDrawerNavigator();
 
   export default function App() {
   return (
+    <CotextProvider>
     <NavigationContainer>
       <Drawer.Navigator
         initialRouteName="Home"
@@ -23,5 +25,6 @@ const Drawer = createDrawerNavigator();
 
       </Drawer.Navigator>
     </NavigationContainer>
+    </CotextProvider>
   );
 }

@@ -1,20 +1,28 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import * as React from 'react';
+import { View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import HomeScreen from './components/HomeScreen'
+import AddCustomer from './components/AddCustomer'
+import OrdersPage from './components/order'
+import { CotextProvider } from './components/context';
 
-export default function App() {
+
+const Drawer = createDrawerNavigator();
+
+  export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <CotextProvider>
+    <NavigationContainer>
+      <Drawer.Navigator
+        initialRouteName="Home"
+        screenOptions={{ headerShown: false }}  // 🔥 hides the header
+      >
+        <Drawer.Screen name="Home" component={HomeScreen} />
+        <Drawer.Screen name="AddCustomer" component={AddCustomer} />
+        <Drawer.Screen name="OrdersPage" component={OrdersPage} />
+      </Drawer.Navigator>
+    </NavigationContainer>
+    </CotextProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

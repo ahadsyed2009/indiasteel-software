@@ -9,8 +9,13 @@ import {
   Alert 
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
+import Entypo from '@expo/vector-icons/Entypo';
+import { Ionicons } from '@expo/vector-icons';
+import {useNavigation} from '@react-navigation/native';
 
 export default function AddCustomer() {
+
+    const navigation = useNavigation();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [customers, setCustomers] = useState([]);
@@ -51,6 +56,16 @@ export default function AddCustomer() {
 
   return (
     <View style={styles.container}>
+     <View style={styles.header}>
+    <View style={{flexDirection:'row'}}>
+      <TouchableOpacity onPress={() => navigation.openDrawer()} style={{}}><Entypo name="menu" size={30} /></TouchableOpacity>
+      <View style={{ justifyContent:'flex-end', marginBottom:5,}}>
+      <Text style={styles.title}> IndiaSteel </Text>
+    </View>
+    </View>
+     <Ionicons name="person-circle-outline" size={32} color="gray" />
+    </View>
+
       <Text style={styles.heading}>Add Customer</Text>
 
       <TextInput
@@ -157,4 +172,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
+  header: { flexDirection: 'row',  marginBottom: 16 ,justifyContent: 'space-between',},
+   title: { fontSize: 18, fontWeight: 'bold', color: '#374151', },
+ 
 });

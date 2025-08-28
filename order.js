@@ -13,7 +13,6 @@ import { useNavigation } from "@react-navigation/native";
 export default function OrdersPage() {
   const navigation = useNavigation();
 
-
   const [customer, setCustomer] = useState("");
   const [phone, setPhone] = useState("");
   const [driverPhone, setDriverPhone] = useState("");
@@ -22,7 +21,7 @@ export default function OrdersPage() {
   const [cementBrand, setCementBrand] = useState("");
   const [steelBrand, setSteelBrand] = useState("");
   const [cementQty, setCementQty] = useState("");
-  const [steelQty, setSteelQty] = useState("");
+  const [steelQty, setSteelQty] = useState(""); // ✅ in KG now
   const [distance, setDistance] = useState("");
 
   const resetForm = () => {
@@ -37,14 +36,29 @@ export default function OrdersPage() {
     setDistance("");
   };
 
-  // Example loading/transport charges calculator
+  // ✅ Loading charges
   const getLoadingCharges = (steel, cement) => {
     return (parseInt(steel || 0) * 20) + (parseInt(cement || 0) * 10);
   };
 
+  // ✅ Transport charges (steel in KG, cement in bags → 50kg each)
   const getTransportCharges = (steel, cement, km) => {
-    const qty = parseInt(steel || 0) + parseInt(cement || 0);
-    return qty * parseInt(km || 0) * 2;
+    const steelKg = parseInt(steel || 0); // ✅ already in KG
+    const cementKg = parseInt(cement || 0) * 50;
+    const totalKg = steelKg + cementKg;
+
+    if (!km || totalKg === 0) return 0;
+
+    let ratePer1000 = 0;
+    if (km <= 4) {
+      ratePer1000 = 500;
+    } else if (km > 4 && km <= 10) {
+      ratePer1000 = 650;
+    } else {
+      ratePer1000 = 850;
+    }
+
+    return Math.ceil(totalKg / 1000) * ratePer1000;
   };
 
   const handlePlaceOrder = () => {
@@ -56,16 +70,14 @@ export default function OrdersPage() {
       orderType,
       steelBrand,
       cementBrand,
-      steelQty,
-      cementQty,
+      steelQty,   // ✅ in KG
+      cementQty,  // ✅ in Bags
       distance,
       loading: getLoadingCharges(steelQty, cementQty),
-      transport: getTransportCharges(steelQty, cementQty, distance),
+      transport: getTransportCharges(steelQty, cementQty, parseFloat(distance)),
     };
 
-    // ✅ Send order back to HomeScreen
     navigation.navigate("Home", { newOrder });
-
     resetForm();
   };
 
@@ -152,7 +164,7 @@ export default function OrdersPage() {
           </Picker>
 
           <TextInput
-            placeholder="Steel Quantity (tons)"
+            placeholder="Steel Quantity (kg)" // ✅ changed label
             style={styles.input}
             keyboardType="numeric"
             value={steelQty}

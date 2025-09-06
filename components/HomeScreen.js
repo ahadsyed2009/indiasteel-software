@@ -1,412 +1,332 @@
-import React, { useState, useEffect } from "react";
+// Dashboard.js
+import React, { useContext, useMemo, useState, useEffect } from "react";
 import {
-  Text,
   View,
-  StyleSheet,
-  StatusBar,
-  TouchableOpacity,
-  SafeAreaView,
-  Switch,
-  FlatList,
-  Modal,
+  Text,
   TextInput,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  SafeAreaView,
+  Linking,
+  Alert,
+  StatusBar,
 } from "react-native";
-import Entypo from "@expo/vector-icons/Entypo";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
-import { Swipeable } from "react-native-gesture-handler";
-import { useContex } from "./context";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import { OrderContext } from "./Context";
+import { fetchUserOrders } from "../firebaseHelpers";
 
+const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
+const itemTotal = (it) => n(it.itemQty) * n(it.itemPrice);
+const orderTotal = (o) =>
+  (o?.items || []).reduce((s, it) => s + itemTotal(it), 0);
 
-export default function HomeScreen() {
-  const navigation = useNavigation();
-const {
-    customers,
-    orders,
-    deleteOrder,
-    setOrders,
-  } = useContex();
+export default function Dashboard({ navigation }) {
+  const { orders, Username, setOrders } = useContext(OrderContext);
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    fetchUserOrders(setOrders);
+  }, []);
 
+  // Group by customer phone
+  const groupedCustomers = useMemo(() => {
+    const map = new Map();
+    (orders || []).forEach((o) => {
+      if (!o || !o.customerPhone) return;
+      if (!map.has(o.customerPhone)) {
+        map.set(o.customerPhone, {
+          id: o.customerPhone,
+          customerName: o.customerName,
+          customerPhone: o.customerPhone,
+          orders: [],
+        });
+      }
+      map.get(o.customerPhone).orders.push(o);
+    });
+    return Array.from(map.values());
+  }, [orders]);
 
-  const [isEnabled, setIsEnabled] = useState(false);
-  const toggleSwitch = () => setIsEnabled((previous) => !previous);
-
-
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-
- const renderRightActions = (id) => (
-    <TouchableOpacity
-      style={styles.deleteButton}
-      onPress={() => deleteOrder(id)}
-    >
-      <Text style={styles.deleteText}>Delete</Text>
-    </TouchableOpacity>
+  // Stats
+  const totalOrders = orders?.length || 0;
+  const totalSales = (orders || []).reduce(
+    (sum, o) => sum + (o.finalTotal ?? orderTotal(o) ?? 0),
+    0
   );
+  const pending = (orders || []).filter((o) => o.status === "Pending").length;
+  const totalCustomers = groupedCustomers.length;
 
-  const updateOrder = () => {
-    setOrders((prevOrders) =>
-      prevOrders.map((o) => (o.id === selectedOrder.id ? selectedOrder : o))
+  // Search
+  const filtered = useMemo(() => {
+    if (!search) return groupedCustomers;
+    const s = search.toLowerCase();
+    return groupedCustomers.filter(
+      (c) =>
+        (c.customerName || "").toLowerCase().includes(s) ||
+        (c.customerPhone || "").includes(s)
     );
-    setIsEditing(false);
-    setModalVisible(false);
-  };
+  }, [search, groupedCustomers]);
 
-  const openOrderDetails = (order) => {
-    setSelectedOrder({ ...order });
-    setModalVisible(true);
-    setIsEditing(false);
+  // Recent customers
+  const recent = [...filtered]
+    .sort((a, b) => {
+      const lastA = Math.max(...a.orders.map((o) => o.createdAtMs || 0));
+      const lastB = Math.max(...b.orders.map((o) => o.createdAtMs || 0));
+      return lastB - lastA;
+    })
+    .slice(0, 8);
+
+  // Dashboard cards
+  const dashboardData = [
+    { label: "Orders", value: totalOrders, color: "#F6F8FC" , textcolor:"#616DE3"},
+    { label: "Sales", value: `₹${totalSales.toLocaleString()}`, color: "#fff2f2", textcolor:"#616DE3"},
+    { label: "Pending", value: pending, color: "#EDFAFA" ,textcolor:"#0694A2" },
+    { label: "Customers", value: totalCustomers, color: "#FDEFEC", textcolor:"#EE4B2B" },
+  ];
+
+  // Call function
+  const callCustomer = (phone) => {
+    if (!phone) return Alert.alert("Error", "No phone number available");
+    const url = `tel:${phone}`;
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) Linking.openURL(url);
+        else Alert.alert("Error", "Cannot open phone dialer");
+      })
+      .catch((err) => console.error(err));
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar hidden={true} />
+
+      {/* Header */}
       <View style={styles.header}>
-        <View style={{ flexDirection: "row" }}>
-          <TouchableOpacity onPress={() => navigation.openDrawer()} style={{}}>
-            <Entypo name="menu" size={30} />
-          </TouchableOpacity>
-          <View style={{ justifyContent: "flex-end", marginBottom: 5 }}>
-            <Text style={styles.title}> IndiaSteel </Text>
-          </View>
+        <View style={{ flexDirection: "row",justifyContent:"center",alignItems:"center" }}>
+          <View
+  style={{
+    width: 40,
+    height: 40,
+    borderRadius: 5, // makes it circular
+    backgroundColor: "#e0f0ff",
+    justifyContent: "center",
+    alignItems: "center",
+    margin:5,
+  }}
+>
+  <Ionicons name="business-outline" size={22} color="#007BFF" />
+</View>
+
+        <View>
+          <Text style={styles.appName}>{Username}</Text>
         </View>
-        <Ionicons name="person-circle-outline" size={32} color="gray" />
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("ProfileScreen")}
+          style={styles.logoWrapper}
+        >
+                   <Ionicons name="person-circle" size={32} color="#007BFF" />
+        </TouchableOpacity>
       </View>
 
-      {/* ✅ Overview */}
-      <View style={styles.overviewCard}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <View>
-            <Text style={styles.overviewTitle}>Good Morning, Junaid</Text>
-            <Text style={styles.subtitle}>
-              {" "}
-              {isEnabled ? "Month" : "Today's"} Overview
-            </Text>
+      {/* Dashboard cards */}
+      <View style={styles.dashboardContainer}>
+        {dashboardData.map((card, index) => (
+          <View key={index} style={[styles.card, { backgroundColor: card.color }]}>
+            <Text style={styles.cardValue}>{card.value}</Text>
+            <Text style={[styles.cardLabel,{ color: card.textcolor }]}>{card.label}</Text>
           </View>
-          <Switch
-            trackColor={{ false: "#767577", true: "#81b0ff" }}
-            ios_backgroundColor="#3e3e3e"
-            onValueChange={toggleSwitch}
-            value={isEnabled}
-          />
-        </View>
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{orders.length}</Text>
-            <Text style={styles.subtitle}>
-              {" "}
-              {isEnabled ? "Month" : "Today's"} Orders
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statLarge, { color: "#22C55E" }]}>₹</Text>
-            <Text style={styles.subtitle}>
-              {isEnabled ? "Month" : "Today's"} sales
-            </Text>
-          </View>
-        </View>
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>1</Text>
-            <Text style={styles.subtitle}>Active Suppliers</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{customers.length}</Text>
-            <Text style={styles.subtitle}>Customers</Text>
-          </View>
-        </View>
+        ))}
       </View>
 
-      {/* ✅ Orders List */}
-      <Text style={styles.sectionTitle}>Orders</Text>
-      <FlatList
-        data={orders}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <Swipeable renderRightActions={() => renderRightActions(item.id)}>
-            <TouchableOpacity style={styles.card}  onPress={() => openOrderDetails(item)}>
-              <Text style={styles.customerName}>{item.customer}</Text>
-              <Text style={styles.orderInfo}>{item.orderType}</Text>
-            </TouchableOpacity>
-          </Swipeable>
-
-        )}
-        ListEmptyComponent={<Text style={styles.emptyText}>No orders yet.</Text>}
+      {/* Search Bar */}
+      <TextInput
+        style={styles.searchBar}
+        placeholder="Search by customer name or phone"
+        placeholderTextColor="#888"
+        value={search}
+        onChangeText={setSearch}
       />
 
-      {/* ✅ Floating Plus Button */}
+      {/* Recent Customers */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Recent Customers</Text>
+        <TouchableOpacity onPress={() => navigation.navigate("AllCustomers")}>
+          <Text style={styles.viewAllText}>View All</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={recent}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => {
+          const totalSpent = item.orders.reduce(
+            (sum, o) => sum + (o.finalTotal ?? orderTotal(o) ?? 0),
+            0
+          );
+          return (
+            <View style={styles.listItem}>
+              <TouchableOpacity
+                style={{ flexDirection: "row", flex: 1 }}
+                onPress={() =>
+                  navigation.navigate("CustomerDetails", {
+                    customerPhone: item.customerPhone,
+                  })
+                }
+              >
+                <View style={styles.custAvatar}>
+                  <Text style={styles.avatarText}>
+                    {(item.customerName || "?").charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.customerName}>{item.customerName}</Text>
+                  <Text style={styles.customerInfo}>Phone: {item.customerPhone}</Text>
+                  <Text style={styles.customerInfoSmall}>
+                    Orders: {item.orders.length} • Total: ₹
+                    {n(totalSpent).toLocaleString()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Action Buttons */}
+              <View style={styles.actionBtns}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: "#28a745" }]}
+                  onPress={() => navigation.navigate("NewOrder", { customer: item })}
+                >
+                  <Ionicons name="add-circle-outline" size={22} color="#fff" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: "#17a2b8" }]}
+                  onPress={() => callCustomer(item.customerPhone)}
+                >
+                  <Ionicons name="call-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        }}
+        ListEmptyComponent={() => (
+          <View style={{ padding: 20 }}>
+            <Text style={{ color: "#666" }}>No customers yet. Add a new order.</Text>
+          </View>
+        )}
+      />
+
+      {/* Floating Add Button */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate("OrdersPage")}
+        onPress={() => navigation.navigate("NewOrder")}
       >
-        <Ionicons name="add" size={32} color="white" />
+        <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
-
-      {/* ✅ Modal for Order Details */}
-      <Modal
-        visible={modalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalBackground}>
-          <View style={styles.modalBox}>
-            {selectedOrder && (
-              <>
-                <Text style={styles.modalTitle}>
-                  {isEditing ? "Edit Order" : "Order Details"}
-                </Text>
-
-                {/* Editable or Readonly fields */}
-                {isEditing ? (
-                  <>
-                   <Text>Customers Name:</Text>
-                    <TextInput
-                      style={styles.input}
-                      title="Customers name"
-                      value={selectedOrder.customer}
-                      onChangeText={(text) =>
-                        setSelectedOrder({ ...selectedOrder, customer: text })
-                      }
-                    />
-                    <Text> Customers phone no:</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={selectedOrder.phone}
-                      keyboardType="phone-pad"
-                      onChangeText={(text) =>
-                        setSelectedOrder({ ...selectedOrder, phone: text })
-                      }
-                    />
-                    <Text>Drivers phone no:</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={selectedOrder.driverPhone}
-                      keyboardType="phone-pad"
-                      onChangeText={(text) =>
-                        setSelectedOrder({ ...selectedOrder, driverPhone: text })
-                      }
-                    />
-                    <Text>Order Type:</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={selectedOrder.orderType}
-                      onChangeText={(text) =>
-                        setSelectedOrder({ ...selectedOrder, orderType: text })
-                      }
-                    />
-
-                  <Text>Steel Brand:</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={selectedOrder.steelBrand}
-                      onChangeText={(text) =>
-                        setSelectedOrder({ ...selectedOrder, steelBrand: text })
-                      }
-                    />
-
-                    <Text>Cement Brand:</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={selectedOrder.cementBrand}
-                      onChangeText={(text) =>
-                        setSelectedOrder({ ...selectedOrder, cementBrand: text })
-                      }
-                    />
-                    
-                    <Text>Cement Qty:</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={String(selectedOrder.cementQty)}
-                      keyboardType="numeric"
-                      onChangeText={(text) =>
-                        setSelectedOrder({ ...selectedOrder, cementQty: text })
-                      }
-                    />
-                    <Text>Steel Qty:</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={String(selectedOrder.steelQty)}
-                      keyboardType="numeric"
-                      onChangeText={(text) =>
-                        setSelectedOrder({ ...selectedOrder, steelQty: text })
-                      }
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Text> Customer: {selectedOrder.customer}</Text>
-                    <Text> Phone: {selectedOrder.phone}</Text>
-                    <Text> Driver Phone: {selectedOrder.driverPhone}</Text>
-                    <Text> Type: {selectedOrder.orderType}</Text>
-                    {selectedOrder.cementQty ? (
-                      <Text> Cement: {selectedOrder.cementQty} ({selectedOrder.cementBrand})</Text>
-                    ) : null}
-                    {selectedOrder.steelQty ? (
-                      <Text> Steel: {selectedOrder.steelQty} ({selectedOrder.steelBrand})</Text>
-                    ) : null}
-                    <Text> Distance: {selectedOrder.distance} km</Text>
-                    <Text> Loading: ₹{selectedOrder.loading}</Text>
-                    <Text> Transport: ₹{selectedOrder.transport}</Text>
-                  </>
-                )}
-
-                {/* Buttons */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    marginTop: 20,
-                    justifyContent: "space-between",
-                  }}
-                >
-                  {isEditing ? (
-                    <TouchableOpacity
-                      style={[styles.modalBtn, { backgroundColor: "#007AFF" }]}
-                      onPress={updateOrder}
-                    >
-                      <Text style={{ color: "white" }}>Save</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      style={[styles.modalBtn, { backgroundColor: "orange" }]}
-                      onPress={() => setIsEditing(true)}
-                    >
-                      <Text style={{ color: "white" }}>Edit</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  <TouchableOpacity
-                    style={[styles.modalBtn, { backgroundColor: "red" }]}
-                    onPress={() => deleteOrder(selectedOrder.id)}
-                  >
-                    <Text style={{ color: "white" }}>Delete</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalBtn, { backgroundColor: "gray" }]}
-                    onPress={() => {
-                      setModalVisible(false);
-                      setIsEditing(false);
-                    }}
-                  >
-                    <Text style={{ color: "white" }}>Close</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 12, paddingTop: 30 ,margin:10  },
+  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
   header: {
     flexDirection: "row",
-    marginBottom: 16,
     justifyContent: "space-between",
-  },
-  title: { fontSize: 18, fontWeight: "bold", color: "#374151" },
-  overviewCard: {
-    backgroundColor: "#E0F2FE",
-    borderRadius: 20,
-    padding: 16,
+    alignItems: "center",
     marginBottom: 16,
-    marginTop: 0,
   },
-  overviewTitle: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
-  subtitle: { fontSize: 12, color: "#6B7280" },
-  statLarge: { fontSize: 22, fontWeight: "bold", color: "#111827" },
-  statsRow: {
+  appName: { fontSize: 20, fontWeight: "bold", color: "#000" },
+  location: { fontSize: 14, color: "#666" },
+  logoWrapper: { alignSelf: "flex-end" },
+  avatar: { width: 40, height: 40, borderRadius: 20 },
+  dashboardContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  card: {
+    display: "flex", // default in React Native, you can skip this
+    width: 167,
+    padding: 16,
+    margin:4,
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4, // works only in React Native 0.71+
+    flexShrink: 0,
+    borderRadius: 8,
+  },
+  cardValue: { fontSize: 18, fontWeight: "bold", color: "#000" },
+  cardLabel: { 
+    textAlign: "center",
+    fontFamily: "Ubuntu",   // make sure Ubuntu font is linked/loaded
+    fontSize: 14,
+    fontStyle: "normal",    // optional, default is 'normal'
+    fontWeight: "700",
+    lineHeight: 20,
+    letterSpacing: -0.21,
+   },
+  searchBar: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    marginBottom: 12,
+    backgroundColor: "#f9f9f9",
+  },
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 12,
+    alignItems: "center",
+    marginBottom: 8,
   },
-  statCard: {
+  sectionTitle: { fontSize: 16, fontWeight: "700" },
+  viewAllText: { color: "#007bff" },
+  listItem: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
     padding: 12,
-    borderRadius: 12,
-    width: "48%",
+    borderRadius: 15,
+    elevation: 3,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  statValue: { fontSize: 18, fontWeight: "600", color: "#1F2937" },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", marginVertical: 10 },
-
-  card: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     marginBottom: 10,
   },
-  customerName: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
+  custAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#007bff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
-  orderInfo: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 4,
-  },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 20,
-    fontSize: 16,
-    color: "#999",
+  avatarText: { color: "#fff", fontWeight: "bold" },
+  customerName: { fontSize: 15, fontWeight: "600" },
+  customerInfo: { fontSize: 13, color: "#555" },
+  customerInfoSmall: { fontSize: 12, color: "#777", marginTop: 4 },
+  actionBtns: { flexDirection: "row", alignItems: "center" },
+  actionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
   },
   fab: {
     position: "absolute",
-    right: 20,
-    bottom: 30,
-    backgroundColor: "#007AFF",
-    borderRadius: 30,
-    padding: 16,
-    elevation: 5,
-  },
-   deleteButton: {
-    backgroundColor: 'red',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 80,
-    borderRadius: 8,
-    height: 73,
-  },
-  deleteText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  modalBackground: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#007bff",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-  },
-  modalBox: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 20,
-    width: "85%",
-    elevation: 5,
-  },
-  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
-  modalBtn: {
-    padding: 10,
-    borderRadius: 8,
-    alignItems: "center",
-    width: "30%",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    padding: 8,
-    marginTop: 8,
-    borderRadius: 6,
-    backgroundColor: "white",
+    elevation: 6,
   },
 });

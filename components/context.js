@@ -1,170 +1,63 @@
-import React, { createContext, useContext, useState, useEffect} from 'react';
-import { Alert } from 'react-native';
-import { db } from '../firebase';
-import { ref, set, remove, onValue} from 'firebase/database';
+// components/OrderContext.js
+import React, { createContext, useState, useEffect, use } from "react";
+import { db } from "../firebase";
+import { ref,onValue} from "firebase/database";
 
-const Context = createContext();
+export const OrderContext = createContext();
 
-export const CotextProvider = ({ children }) => {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [customers, setCustomers] = useState([]);
-  const [customer, setCustomer] = useState('');
-
-  const [driverPhone, setDriverPhone] = useState('');
-  const [orderType, setOrderType] = useState('cement');
-  const [cementBrand, setCementBrand] = useState('');
-  const [steelBrand, setSteelBrand] = useState('');
-  const [cementQty, setCementQty] = useState('');
-  const [steelQty, setSteelQty] = useState('');
-  const [distance, setDistance] = useState('');
-  const [searchText, setSearchText] = useState("");
+export const OrderProvider = ({ children }) => {
   const [orders, setOrders] = useState([]);
 
-  const resetForm = () => {
-    setCustomer('');
-    setPhone('');
-    setDriverPhone('');
-    setOrderType('cement');
-    setCementBrand('');
-    setSteelBrand('');
-    setCementQty('');
-    setSteelQty('');
-    setDistance('');
-    setSearchText('');
-    
-  };
+  // Existing single price values
+  const [steelPrice, setSteelPrice] = useState(650);
+  const [cementPrice, setCementPrice] = useState(350);
 
-  const getLoadingCharges = (steel, cement) => {
-    return (parseInt(steel || 0) * 20) + (parseInt(cement || 0) * 10);
-  };
+  // ✅ Default company so companies.map never crashes
+  const [companies, setCompanies] = useState([
+    { name: "Default", steelPrice: 0, steelUnit: 0, cementPrice: 0, cementUnit: 0 },
+  ]);
 
-const getTransportCharges = (steel, cement, km) => {
-    const steelKg = parseInt(steel || 0); // ✅ already in KG
-    const cementKg = parseInt(cement || 0) * 50;
-    const totalKg = steelKg + cementKg;
+useEffect(() => {
+  const ordersRef = ref(db, "/orders");
 
-    if (!km || totalKg === 0) return 0;
+  const unsubscribe = onValue(ordersRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.val();
 
-    let ratePer1000 = 0;
-    if (km <= 4) {
-      ratePer1000 = 500;
-    } else if (km > 4 && km <= 10) {
-      ratePer1000 = 650;
+      const ordersList = Object.entries(data).map(([id, value]) => ({
+        id,
+        ...value,
+      }));
+
+      setOrders(ordersList);
     } else {
-      ratePer1000 = 850;
+      setOrders([]);
     }
+  });
 
-    return Math.ceil(totalKg / 1000) * ratePer1000;
-  };
+  return () => unsubscribe();
+}, []);
 
-  // ✅ place order and add to global orders
- 
+const [Username, setUsername] = useState("");
 
-  const addCustomer = () => {
-    if (!name.trim()) {
-      Alert.alert('Validation Error', 'Please enter customer name');
-      return;
-    }
-    if (!/^\d{10}$/.test(phone)) {
-      Alert.alert('Validation Error', 'Phone number must be exactly 10 digits');
-      return;
-    }
-    const id = Date.now().toString();
-    const newCustomer = {
-      id: Date.now().toString(),
-      name,
-      phone,
-    };
-    set(ref(db,'customers/' + id), newCustomer)
-    .then(() => {
-      setName('');
-      setPhone('');
-    })
-    .catch((error) => { 
-      Alert.alert('Error', error.message);
-
-    });
-
-   
   
-    
-  };
-
-  const deleteCustomer = (id) => {
-    remove(ref(db, 'customers/' + id))
-  };
-
-  const deleteOrder = (id) => {
-   remove(ref(db, 'orders/' + id))
-  };
-  useEffect(() => {
-    const customerRef = ref(db, "customers");
-    const orderRef = ref(db, "orders");
-
-    const unsubCustomers = onValue(customerRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setCustomers(Object.values(data));
-      } else {
-        setCustomers([]);
-      }
-    });
-
-    const unsubOrders = onValue(orderRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setOrders(Object.values(data).reverse()); // latest first
-      } else {
-        setOrders([]);
-      }
-    });
-
-    return () => {
-      unsubCustomers();
-      unsubOrders();
-    };
-  }, []);
 
   return (
-    <Context.Provider
-      value={{
-        name,
-        setName,
-        phone,
-        setPhone,
-        customers,
-        setCustomers,
-        addCustomer,
-        deleteCustomer,
-        customer,
-        setCustomer,
-        driverPhone,
-        setDriverPhone,
-        orderType,
-        setOrderType,
-        cementBrand,
-        setCementBrand,
-        steelBrand,
-        setSteelBrand,
-        cementQty,
-        setCementQty,
-        steelQty,
-        setSteelQty,
-        distance,
-        setDistance,
-        getLoadingCharges,
-        getTransportCharges,
-        resetForm,
-        orders,
-        deleteOrder,
-        searchText,
-        setSearchText,
-      }}
-    >
+    <OrderContext.Provider 
+    value={{ 
+      orders, 
+      setOrders,
+      steelPrice,
+      setSteelPrice,
+      cementPrice,
+      setCementPrice,
+      companies,
+      setCompanies,
+      Username,
+      setUsername,
+      
+      }}>
       {children}
-    </Context.Provider>
+    </OrderContext.Provider>
   );
 };
-
-export const useContex = () => useContext(Context);

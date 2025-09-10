@@ -2,28 +2,21 @@
 import React, { useContext, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image } from "react-native";
 import { OrderContext } from "./Context";
+import Ionicons from "react-native-vector-icons/Ionicons";
 
 export default function ProfileScreen({ navigation }) {
-  const { user, updateUser } = useContext(OrderContext);
-  const [name, setName] = useState(user.name);
-  const [phone, setPhone] = useState(user.phone);
-
-  const handleSave = () => {
-    updateUser({ name, phone });
-    alert("Profile saved!");
-  };
+     
+  const { Username } = useContext(OrderContext);
+  
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Profile Header */}
       <View style={styles.header}>
         <View style={styles.avatarWrapper}>
-           <Image
-          style={styles.avatar}
-          source={require("../assets/icon.png")}
-        />
+              <Ionicons name="person-circle" size={32} color="#007BFF" />
         </View>
-        <Text style={styles.username}>{user.name}</Text>
+        <Text style={styles.username}>{Username}</Text>
         <TouchableOpacity
           style={styles.settingsBtnTop}
           onPress={() => navigation.navigate("SettingsScreen")}
@@ -33,26 +26,7 @@ export default function ProfileScreen({ navigation }) {
       </View>
 
       {/* Input Card */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-        />
-
-        <Text style={styles.label}>Phone</Text>
-        <TextInput
-          style={styles.input}
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
-
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveText}>Save Profile</Text>
-        </TouchableOpacity>
-      </View>
+     
     </ScrollView>
   );
 }

@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { OrderContext } from "./Context";
+import { useNavigation } from "@react-navigation/native";
 import { fetchUserOrders } from "../firebaseHelpers";
 
 const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
@@ -22,7 +23,8 @@ const itemTotal = (it) => n(it.itemQty) * n(it.itemPrice);
 const orderTotal = (o) =>
   (o?.items || []).reduce((s, it) => s + itemTotal(it), 0);
 
-export default function Dashboard({ navigation }) {
+export default function Dashboard() {
+  const navigation = useNavigation();
   const { orders, Username, setOrders } = useContext(OrderContext);
   const [search, setSearch] = useState("");
   useEffect(() => {
@@ -125,7 +127,7 @@ export default function Dashboard({ navigation }) {
           onPress={() => navigation.navigate("ProfileScreen")}
           style={styles.logoWrapper}
         >
-                   <Ionicons name="person-circle" size={32} color="#007BFF" />
+      <Ionicons name="person-circle" size={32} color="#007BFF" />
         </TouchableOpacity>
       </View>
 

@@ -3,8 +3,11 @@ import React, { useContext, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image } from "react-native";
 import { OrderContext } from "./Context";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { useNavigation } from "@react-navigation/native";
 
-export default function ProfileScreen({ navigation }) {
+
+export default function ProfileScreen() {
+      const navigation = useNavigation();
      
   const { Username } = useContext(OrderContext);
   

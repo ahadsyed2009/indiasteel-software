@@ -1,28 +1,30 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { initializeApp,getApps  } from "firebase/app";
 import { getDatabase } from "firebase/database";
-import { getAuth } from "firebase/auth";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeAuth, getReactNativePersistence } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+
+// Your Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyCskrDuxMGkecDebJLtPR3tbdVRG9KwVD8",
-  authDomain: "indiasteel-software.firebaseapp.com",
-  projectId: "indiasteel-software",
-  storageBucket: "indiasteel-software.firebasestorage.app",
-  messagingSenderId: "288374665262",
-  appId: "1:288374665262:web:cc2eae756ebc24a1466fbf",
-  measurementId: "G-HRRGBM4045",
-
-  databaseURL: "https://indiasteel-software-default-rtdb.asia-southeast1.firebasedatabase.app/",
+apiKey: "AIzaSyCskrDuxMGkecDebJLtPR3tbdVRG9KwVD8",
+authDomain: "indiasteel-software.firebaseapp.com",
+projectId: "indiasteel-software",
+storageBucket: "indiasteel-software.firebasestorage.app",
+messagingSenderId: "288374665262",
+appId: "1:288374665262:web:cc2eae756ebc24a1466fbf",
+measurementId: "G-HRRGBM4045",
+databaseURL: "https://indiasteel-software-default-rtdb.asia-southeast1.firebasedatabase.app/",
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+
+
+// Initialize Realtime Database
 const db = getDatabase(app);
-export const auth = getAuth(app);
-export { db };
+
+// Initialize Auth with AsyncStorage persistence
+const auth = initializeAuth(app, {
+persistence: getReactNativePersistence(AsyncStorage),
+});
+
+export { app, db, auth };

@@ -12,9 +12,10 @@ import {
 import { OrderContext } from "./Context";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import Ionicons from "react-native-vector-icons/Ionicons";
-import Feather from "react-native-vector-icons/Feather";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+import { ref, remove } from "firebase/database";
+import { db, auth } from "../firebase"; // adjust path if neede
+
 
 // ---------------------- Helpers ----------------------
 const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
@@ -66,15 +67,27 @@ export default function CustomerDetails({ route, navigation }) {
 
   // ---- Delete order ----
   const deleteOrder = (id) => {
-    Alert.alert("Delete", "Delete this order?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => setOrders((prev) => prev.filter((o) => o.id !== id)),
+  Alert.alert("Delete", "Delete this order?", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Delete",
+      style: "destructive",
+      onPress: () => {
+        const userId = auth.currentUser.uid;
+        const orderRef = ref(db, `userOrders/${userId}/${id}`);
+
+        remove(orderRef)
+          .then(() => {
+            console.log("Order deleted successfully");
+            setOrders((prev) => prev.filter((o) => o.id !== id));
+          })
+          .catch((error) => {
+            console.error("Error deleting order:", error);
+          });
       },
-    ]);
-  };
+    },
+  ]);
+};
 
   // ---- Update order status ----
   const setStatus = (id, status) => {

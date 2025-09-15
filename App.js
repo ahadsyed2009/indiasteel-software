@@ -19,7 +19,8 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // 👈 to avoid flicker
+  const [loading, setLoading] = useState(true);
+   // 👈 to avoid flicker
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -36,10 +37,10 @@ export default function App() {
   return (
     <OrderProvider>
       <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator>
           {user ? (
             <>
-              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown:false }}/>
               <Stack.Screen
                 name="AllCustomers"
                 component={AllCustomers}

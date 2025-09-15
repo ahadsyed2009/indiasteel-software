@@ -363,16 +363,27 @@ export default function NewOrder({ navigation, route }) {
             />
 
             {/* ✅ Company Picker with safety */}
-            <View style={styles.dropdown}>
-              <Picker
-                selectedValue={currentItemCompany}
-                onValueChange={(v) => setCurrentItemCompany(v)}
-              >
-                {(companies || []).map((c) => (
-                  <Picker.Item key={c.name} label={c.name} value={c.name} />
-                ))}
-              </Picker>
-            </View>
+            {currentItem && currentItem.itemName !== "Other" && (
+  <View style={styles.dropdown}>
+    <Picker
+      selectedValue={currentItemCompany}
+      onValueChange={(v) => setCurrentItemCompany(v)}
+    >
+      {(companies || [])
+        .filter((c) => {
+          if (!currentItem) return true; // safety fallback
+          const name = currentItem.itemName.toLowerCase();
+          if (name.includes("steel")) return c.steelPrice > 0;
+          if (name.includes("cement")) return c.cementPrice > 0;
+          return true; // fallback: show all
+        })
+        .map((c) => (
+          <Picker.Item key={c.name} label={c.name} value={c.name} />
+        ))}
+    </Picker>
+  </View>
+)}
+
 
             <Text style={{ marginVertical: 6 }}>
               Line Total: ₹

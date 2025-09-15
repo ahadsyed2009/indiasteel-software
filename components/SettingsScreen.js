@@ -1,5 +1,5 @@
-// components/SettingsScreen.js
-import React, { useContext, useState } from "react";
+// SettingsScreen.js
+import React, { useContext, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,71 +7,88 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
-  Modal,
   Alert,
+  Switch,
 } from "react-native";
-import { PriceContext } from "./Context";
-import { Ionicons } from "@expo/vector-icons"; // optional for trash icon
+import { Ionicons } from "@expo/vector-icons";
+import { OrderContext } from "./Context";
+import { db, auth } from "../firebase";
+import { ref, set, remove,onValue } from "firebase/database";
+
 
 export default function SettingsScreen() {
-  const { companies, setCompanies } = useContext(PriceContext);
+  const { companies, setCompanies } = useContext(OrderContext);
 
-  const [selectedCompany, setSelectedCompany] = useState(null);
-  const [showModal, setShowModal] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
   const [steelPrice, setSteelPrice] = useState("");
-  const [steelUnit, setSteelUnit] = useState("");
+  const [steelQty, setSteelQty] = useState("");
   const [cementPrice, setCementPrice] = useState("");
-  const [cementUnit, setCementUnit] = useState("");
+  const [cementQty, setCementQty] = useState("");
+  const [isSteel, setIsSteel] = useState(true);
+  const toggleSwitch = () => setIsSteel((prev) => !prev);
+
+  const userId = auth.currentUser?.uid;
+
+  // Load companies from Firebase once on mount
+  useEffect(() => {
+  if (!userId) return;
+
+  const companiesRef = ref(db, `userOrders/${userId}/companies`);
+  
+  // Listen for changes in Firebase
+  const unsubscribe = onValue(companiesRef, (snapshot) => {
+    const data = snapshot.val();
+    const companiesArray = data ? Object.values(data) : [];
+    setCompanies(companiesArray);
+  }, (error) => {
+    console.error("Error fetching companies:", error);
+  });
+
+  // Cleanup listener on unmount
+  return () => unsubscribe();
+}, [userId]);
+
 
   // Add new company
   const addCompany = () => {
-    const name = newCompanyName.trim();
-    if (!name) return Alert.alert("Error", "Enter company name");
+    if (!newCompanyName.trim())
+      return Alert.alert("Error", "Enter company name");
 
-    const exists = companies.find((c) => c.name === name);
-    if (exists) return Alert.alert("Error", "Company already exists");
+    if (companies.find((c) => c.name === newCompanyName.trim()))
+      return Alert.alert("Error", "Company already exists");
 
-    const newCompany = {
+    let newCompany = {};
+    if (isSteel) {
+      newCompany = {
       id: Date.now().toString(),
-      name,
-      steelPrice: 0,
-      steelUnit: 0,
-      cementPrice: 0,
-      cementUnit: 0,
-    };
+      name: newCompanyName.trim(),
+      steelPrice: Number(steelPrice) || 0,
+      steelQty: Number(steelQty) || 0,
+      }
+    } else {
+      newCompany = {
+      id: Date.now().toString(),
+      name: newCompanyName.trim(),
+      cementPrice: Number(cementPrice) || 0,
+      cementQty: Number(cementQty) || 0,
+      }
+    }
+
+    // Update local state
     setCompanies([newCompany, ...companies]);
+
+    // Reset inputs
     setNewCompanyName("");
-  };
+    setSteelPrice("");
+    setSteelQty("");
+    setCementPrice("");
+    setCementQty("");
 
-  // Open modal for editing selected company
-  const editCompany = (company) => {
-    setSelectedCompany(company);
-    setSteelPrice(String(company.steelPrice));
-    setSteelUnit(String(company.steelUnit));
-    setCementPrice(String(company.cementPrice));
-    setCementUnit(String(company.cementUnit));
-    setShowModal(true);
-  };
-
-  // Save changes to selected company
-  const saveChanges = () => {
-    if (!selectedCompany) return;
-    setCompanies(
-      companies.map((c) =>
-        c.id === selectedCompany.id
-          ? {
-              ...c,
-              steelPrice: Number(steelPrice),
-              steelUnit: Number(steelUnit),
-              cementPrice: Number(cementPrice),
-              cementUnit: Number(cementUnit),
-            }
-          : c
-      )
+    // Save to Firebase
+    const newCompanyRef = ref(db, `userOrders/${userId}/companies/${newCompany.id}`);
+    set(newCompanyRef, newCompany).catch((err) =>
+      console.error("Error saving company:", err)
     );
-    setShowModal(false);
-    Alert.alert("Saved", "Company prices updated!");
   };
 
   // Delete a company
@@ -85,32 +102,32 @@ export default function SettingsScreen() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
+            // Remove from local state
             setCompanies(companies.filter((c) => c.id !== company.id));
-            if (selectedCompany?.id === company.id) setShowModal(false);
+
+            // Remove from Firebase
+            const companyRef = ref(db, `userOrders/${userId}/companies/${company.id}`);
+            remove(companyRef).catch((err) =>
+              console.error("Error deleting company:", err)
+            );
           },
         },
       ]
     );
   };
 
+  // Render each company card
   const renderCompany = ({ item }) => (
     <View style={styles.companyCardContainer}>
-      <TouchableOpacity
-        style={styles.companyCard}
-        onPress={() => editCompany(item)}
-      >
+      <View style={styles.companyCard}>
         <Text style={styles.companyName}>{item.name}</Text>
         <Text style={styles.priceText}>
-          Steel: ₹{item.steelPrice} / {item.steelUnit}kg
+
+          {isSteel ? `Steel: ₹${item.steelPrice} / ${item.steelQty}kg`: `Cement: ₹${item.cementPrice} / ${item.cementQty}bags`}
         </Text>
-        <Text style={styles.priceText}>
-          Cement: ₹{item.cementPrice} / {item.cementUnit} bag
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.deleteBtn}
-        onPress={() => deleteCompany(item)}
-      >
+        
+      </View>
+      <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteCompany(item)}>
         <Ionicons name="trash-outline" size={24} color="#fff" />
       </TouchableOpacity>
     </View>
@@ -119,14 +136,33 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Company Prices Settings</Text>
+      <Switch
+        onValueChange={toggleSwitch}
+        value={isSteel}
+        style={{ margin: 10, alignSelf: "flex-end" }}
+      />
 
       {/* Add new company */}
-      <View style={styles.addRow}>
+      <View style={styles.addContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Enter company name"
+          placeholder="Company Name"
           value={newCompanyName}
           onChangeText={setNewCompanyName}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder={isSteel ? "Steel Price" : "Cement Price"}
+          keyboardType="numeric"
+          value={isSteel ? steelPrice : cementPrice}
+          onChangeText={isSteel ? setSteelPrice : setCementPrice}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder={isSteel ? "Steel Qty (tons)" : "Cement Qty (bags)"}
+          keyboardType="numeric"
+          value={isSteel ? steelQty : cementQty}
+          onChangeText={isSteel ? setSteelQty : setCementQty}
         />
         <TouchableOpacity style={styles.addBtn} onPress={addCompany}>
           <Text style={styles.addBtnText}>+ Add</Text>
@@ -140,61 +176,6 @@ export default function SettingsScreen() {
         renderItem={renderCompany}
         contentContainerStyle={{ paddingBottom: 50 }}
       />
-
-      {/* Modal for editing */}
-      <Modal visible={showModal} transparent animationType="slide">
-        <View style={styles.modalBg}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{selectedCompany?.name}</Text>
-
-            <Text style={styles.label}>Steel Price / Unit</Text>
-            <View style={styles.row}>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Price ₹"
-                keyboardType="numeric"
-                value={steelPrice}
-                onChangeText={setSteelPrice}
-              />
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Unit kg"
-                keyboardType="numeric"
-                value={steelUnit}
-                onChangeText={setSteelUnit}
-              />
-            </View>
-
-            <Text style={styles.label}>Cement Price / Unit</Text>
-            <View style={styles.row}>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Price ₹"
-                keyboardType="numeric"
-                value={cementPrice}
-                onChangeText={setCementPrice}
-              />
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Unit bag"
-                keyboardType="numeric"
-                value={cementUnit}
-                onChangeText={setCementUnit}
-              />
-            </View>
-
-            <TouchableOpacity style={styles.saveBtn} onPress={saveChanges}>
-              <Text style={styles.saveText}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={() => setShowModal(false)}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -202,21 +183,21 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#f0f2f5" },
   title: { fontSize: 24, fontWeight: "bold", marginBottom: 16, color: "#0b2545" },
-  addRow: { flexDirection: "row", marginBottom: 16 },
+  addContainer: { marginBottom: 16 },
   input: {
-    flex: 1,
     backgroundColor: "#fff",
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#ddd",
-    marginRight: 8,
+    marginBottom: 8,
   },
   addBtn: {
     backgroundColor: "#0b84ff",
-    paddingHorizontal: 16,
+    padding: 14,
     borderRadius: 12,
-    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
   },
   addBtnText: { color: "#fff", fontWeight: "bold" },
   companyCardContainer: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
@@ -238,22 +219,4 @@ const styles = StyleSheet.create({
   },
   companyName: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
   priceText: { fontSize: 14, fontWeight: "600", color: "#0b84ff" },
-  modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 16 },
-  modalCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
-  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: "600", marginBottom: 6 },
-  row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
-  modalInput: {
-    flex: 1,
-    backgroundColor: "#f6f6f6",
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    marginRight: 8,
-  },
-  saveBtn: { backgroundColor: "#0b84ff", padding: 14, borderRadius: 12, alignItems: "center", marginBottom: 8 },
-  saveText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  cancelBtn: { backgroundColor: "#eee", padding: 14, borderRadius: 12, alignItems: "center" },
-  cancelText: { color: "#333", fontWeight: "600", fontSize: 16 },
 });

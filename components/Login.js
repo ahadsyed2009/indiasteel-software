@@ -1,6 +1,13 @@
-// components/LoginScreen.js
 import React, { useState, useContext } from "react";
-import { View, TextInput, StyleSheet, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  View,
+  TextInput,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { loginUser, registerUser } from "../authService";
 import { OrderContext } from "./Context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -16,13 +23,15 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <Text style={styles.title}>Welcome Back!</Text>
+
       <TextInput
         placeholder="Shop Name"
         value={Username}
-        onChangeText={setUsername}
+        onChangeText={setUsername} // auto-saves now
         style={styles.input}
         placeholderTextColor="#aaa"
       />
+
       <TextInput
         placeholder="Email"
         value={email}
@@ -31,6 +40,7 @@ export default function LoginScreen() {
         keyboardType="email-address"
         placeholderTextColor="#aaa"
       />
+
       <TextInput
         placeholder="Password"
         secureTextEntry
@@ -41,7 +51,10 @@ export default function LoginScreen() {
       />
 
       {/* Login Button */}
-      <TouchableOpacity onPress={() => loginUser(email, password)} style={styles.buttonWrapper}>
+      <TouchableOpacity
+        onPress={() => loginUser(email, password)}
+        style={styles.buttonWrapper}
+      >
         <LinearGradient
           colors={["#6a11cb", "#2575fc"]}
           start={{ x: 0, y: 0 }}
@@ -53,7 +66,10 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       {/* Register Button */}
-      <TouchableOpacity onPress={() => registerUser(email, password)} style={styles.buttonWrapper}>
+      <TouchableOpacity
+        onPress={() => registerUser(email, password)}
+        style={styles.buttonWrapper}
+      >
         <LinearGradient
           colors={["#2575fc", "#6a11cb"]}
           start={{ x: 0, y: 0 }}
@@ -71,40 +87,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    paddingHorizontal: 25,
-    backgroundColor: "#f2f6fc",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#f0f0f0",
   },
   title: {
     fontSize: 28,
+    marginBottom: 20,
     fontWeight: "bold",
-    marginBottom: 30,
-    textAlign: "center",
     color: "#333",
   },
   input: {
+    width: "100%",
+    height: 50,
+    borderColor: "#ccc",
     borderWidth: 1,
-    borderColor: "#ddd",
-    backgroundColor: "#fff",
-    padding: 15,
+    borderRadius: 8,
+    paddingHorizontal: 15,
     marginBottom: 15,
-    borderRadius: 12,
-    fontSize: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    backgroundColor: "#fff",
+    color: "#333",
   },
   buttonWrapper: {
-    marginBottom: 15,
+    width: "100%",
+    marginVertical: 10,
   },
   button: {
     paddingVertical: 15,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: "center",
   },
   buttonText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
   },
 });

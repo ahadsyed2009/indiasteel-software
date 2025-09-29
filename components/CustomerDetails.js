@@ -1,0 +1,516 @@
+// CustomerDetails.js
+import React, { useContext, useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  TextInput,
+} from "react-native";
+import { OrderContext } from "./context";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
+import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+import { ref, remove } from "firebase/database";
+import { db, auth } from "../firebase"; // adjust path if neede
+import { set } from "firebase/database"; // make sure 'set' is imported
+
+
+// ---------------------- Helpers ----------------------
+const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
+
+function computeOrderTotals(order) {
+  const subTotal = (order.items || []).reduce((sum, it) => {
+    const unitPrice = it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
+    return sum + unitPrice * n(it.itemQty);
+  }, 0);
+
+  const transport = n(order.transport);
+  return { subTotal, transport, grandTotal: subTotal + transport };
+}
+
+// ---------------------- Component ----------------------
+export default function CustomerDetails({ route, navigation }) {
+  const { orders, setOrders } = useContext(OrderContext);
+  const customerPhoneParam = route?.params?.customerPhone;
+
+  // ---- Filter customer orders ----
+  const customerOrders = useMemo(() => {
+    if (customerPhoneParam)
+      return (orders || []).filter((o) => o.customerPhone === customerPhoneParam);
+    return [];
+  }, [orders, customerPhoneParam]);
+
+  const primary = customerOrders[0] || null;
+
+  // ---- Customer edit state ----
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+
+  // ---- Save edited customer ----
+  const saveCustomerEdit = () => {
+    if (!editName.trim() || !editPhone.trim()) {
+      Alert.alert("Error", "Name and phone cannot be empty.");
+      return;
+    }
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.customerPhone === customerPhoneParam
+          ? { ...o, customerName: editName, customerPhone: editPhone }
+          : o
+      )
+    );
+    setEditing(false);
+  };
+
+  // ---- Delete order ----
+  const deleteOrder = (id) => {
+  Alert.alert("Delete", "Delete this order?", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Delete",
+      style: "destructive",
+      onPress: () => {
+        const userId = auth.currentUser.uid;
+        const orderRef = ref(db, `userOrders/${userId}/${id}`);
+
+        remove(orderRef)
+          .then(() => {
+            console.log("Order deleted successfully");
+            setOrders((prev) => prev.filter((o) => o.id !== id));
+          })
+          .catch((error) => {
+            console.error("Error deleting order:", error);
+          });
+      },
+    },
+  ]);
+};
+
+  // ---- Update order status ----
+const setStatus = (id, status) => {
+  const userId = auth.currentUser.uid;
+  const orderRef = ref(db, `userOrders/${userId}/${id}`);
+
+  // Find the order to update
+  const orderToUpdate = orders.find((o) => o.id === id);
+  if (!orderToUpdate) return;
+
+  // Update in Firebase
+  set(orderRef, { ...orderToUpdate, status })
+    .then(() => {
+      console.log("Status updated in Firebase:", status);
+      // Update locally so UI feels instant
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status } : o))
+      );
+    })
+    .catch((error) => {
+      console.error("Error updating status:", error);
+    });
+};
+  // ---- Share PDF: per order ----
+  const shareOrderPDF = async (order) => {
+    const { subTotal, transport, grandTotal } = computeOrderTotals(order);
+    const html = `
+      <h2>Order Receipt</h2>
+      <p><strong>Customer:</strong> ${order.customerName} (${order.customerPhone})</p>
+      <p><strong>Date:</strong> ${new Date(order.createdAtMs || Date.now()).toLocaleString()}</p>
+      <p><strong>Status:</strong> ${order.status || "Pending"}</p>
+      <hr/>
+      <h3>Items</h3>
+      <table border="1" cellspacing="0" cellpadding="6" width="100%">
+        <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+        ${(order.items || [])
+          .map((it) => {
+            const unitPrice = it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
+            return `
+              <tr>
+                <td>${it.itemName === "Other" ? it.customName : it.itemName} ${it.brand ? `(${it.brand})` : ""}</td>
+                <td>${it.itemQty}</td>
+                <td>₹${unitPrice}</td>
+                <td>₹${(n(it.itemQty) * unitPrice).toFixed(2)}</td>
+              </tr>`;
+          })
+          .join("")}
+      </table>
+      <hr/>
+      <p>Subtotal: ₹${subTotal.toFixed(2)}</p>
+      <p>Transport: ₹${transport.toFixed(2)}</p>
+      <h3>Final: ₹${grandTotal.toFixed(2)}</h3>
+      <p><strong>Payment:</strong> ${order.paymentMethod || "-"}</p>
+    `;
+    try {
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, {
+        mimeType: "application/pdf",
+        dialogTitle: "Share Order",
+        UTI: "com.adobe.pdf",
+      });
+    } catch {
+      Alert.alert("Error", "Could not generate PDF");
+    }
+  };
+
+  // ---- Share PDF: all orders for customer ----
+  const shareAllOrdersPDF = async () => {
+    if (!primary) {
+      Alert.alert("No orders", "This customer has no orders yet.");
+      return;
+    }
+
+    let html = `
+      <h2>All Orders - ${primary.customerName} (${primary.customerPhone})</h2>
+      <hr/>
+    `;
+
+    customerOrders.forEach((order, idx) => {
+      const { subTotal, transport, grandTotal } = computeOrderTotals(order);
+      html += `
+        <h3>Order ${idx + 1} • ${new Date(order.createdAtMs || Date.now()).toLocaleString()}</h3>
+        <p>Status: ${order.status || "Pending"}</p>
+        <table border="1" cellspacing="0" cellpadding="6" width="100%">
+          <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+          ${(order.items || [])
+            .map((it) => {
+              const unitPrice = it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
+              return `
+                <tr>
+                  <td>${it.itemName === "Other" ? it.customName : it.itemName} ${it.brand ? `(${it.brand})` : ""}</td>
+                  <td>${it.itemQty}</td>
+                  <td>₹${unitPrice}</td>
+                  <td>₹${(n(it.itemQty) * unitPrice).toFixed(2)}</td>
+                </tr>`;
+            })
+            .join("")}
+        </table>
+        <p>Subtotal: ₹${subTotal.toFixed(2)}</p>
+        <p>Transport: ₹${transport.toFixed(2)}</p>
+        <p><strong>Final: ₹${grandTotal.toFixed(2)}</strong></p>
+        <p>Payment: ${order.paymentMethod || "-"}</p>
+        <hr/>
+      `;
+    });
+
+    try {
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, {
+        mimeType: "application/pdf",
+        dialogTitle: "Share All Orders",
+        UTI: "com.adobe.pdf",
+      });
+    } catch {
+      Alert.alert("Error", "Could not generate PDF");
+    }
+  };
+
+  // ---- No orders case ----
+  if (!primary) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ padding: 20 }}>No orders found for this customer.</Text>
+      </View>
+    );
+  }
+
+  // ---- Customer object for NewOrder ----
+  const customerObj = {
+    id: primary.customerPhone,
+    customerName: primary.customerName,
+    customerPhone: primary.customerPhone,
+    orders: customerOrders,
+  };
+
+  // ---------------------- Render ----------------------
+  return (
+    <View style={styles.container}>
+      {/* Customer header card */}
+      <View style={styles.headerCard}>
+        <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {(primary.customerName || "?").charAt(0).toUpperCase()}
+            </Text>
+          </View>
+
+          {editing ? (
+            <View style={{ flex: 1 }}>
+              <TextInput
+                style={styles.input}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Customer Name"
+              />
+              <TextInput
+                style={styles.input}
+                value={editPhone}
+                onChangeText={setEditPhone}
+                placeholder="Customer Phone"
+                keyboardType="phone-pad"
+              />
+              <View style={{ flexDirection: "row", marginTop: 8 }}>
+                <TouchableOpacity style={styles.saveBtn} onPress={saveCustomerEdit}>
+                  <Text style={{ color: "#fff" }}>Save</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveBtn, { backgroundColor: "#aaa", marginLeft: 8 }]}
+                  onPress={() => setEditing(false)}
+                >
+                  <Text style={{ color: "#fff" }}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{primary.customerName}</Text>
+              <Text style={styles.subtitle}>{primary.customerPhone}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Header actions */}
+        <View style={styles.headerActions}>
+          {/* Add Order */}
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: "#28a745" }]}
+            onPress={() => navigation.navigate("NewOrder", { customer: customerObj })}
+          >
+            <Ionicons name="add-circle-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Share All */}
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: "#17a2b8" }]}
+            onPress={shareAllOrdersPDF}
+          >
+            <Ionicons name="share-social-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Edit toggle */}
+          {!editing && (
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: "#007bff" }]}
+              onPress={() => {
+                setEditName(primary.customerName);
+                setEditPhone(primary.customerPhone);
+                setEditing(true);
+              }}
+            >
+              <Feather name="edit-3" size={18} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Orders list */}
+      <FlatList
+        data={[...customerOrders].sort(
+          (a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0)
+        )}
+        keyExtractor={(it) => it.id.toString()}
+        renderItem={({ item }) => {
+          const { subTotal, transport, grandTotal } = computeOrderTotals(item);
+          const status = item.status || "Pending";
+
+          return (
+            <View style={styles.orderCard}>
+              {/* Order header */}
+              <View style={styles.orderHeader}>
+                <Text style={{ fontWeight: "700" }}>
+                  {new Date(item.createdAtMs || Date.now()).toLocaleString()}
+                </Text>
+                <Text style={{ fontWeight: "700" }}>₹{grandTotal.toFixed(2)}</Text>
+              </View>
+
+              {/* Status chips */}
+              <View style={styles.statusRow}>
+                {["Pending", "In Progress", "Complete"].map((opt) => {
+                  const active = status === opt;
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[
+                        styles.statusChip,
+                        active && styles[`chip${opt.replace(" ", "")}`],
+                      ]}
+                      onPress={() => setStatus(item.id, opt)}
+                    >
+                      <Text
+                        style={[
+                          styles.statusChipText,
+                          active && styles[`chipText${opt.replace(" ", "")}`],
+                        ]}
+                      >
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Items list */}
+              <View style={{ marginTop: 8 }}>
+                {(item.items || []).map((it, idx) => {
+                  const unitPrice =
+                    it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
+                  return (
+                    <View key={idx} style={styles.itemRow}>
+                      <Text style={{ flex: 1 }}>
+                        {it.itemName === "Other" ? it.customName : it.itemName}{" "}
+                        {it.brand ? `(${it.brand})` : ""}
+                      </Text>
+                      <Text style={{ width: 70 }}>x{it.itemQty}</Text>
+                      <Text style={{ width: 90 }}>₹{unitPrice}</Text>
+                      <Text style={{ width: 90 }}>
+                        ₹{(n(it.itemQty) * unitPrice).toFixed(2)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Totals */}
+              <View style={{ marginTop: 8 }}>
+                <Text>Subtotal: ₹{subTotal.toFixed(2)}</Text>
+                <Text>Transport: ₹{transport.toFixed(2)}</Text>
+                <Text style={{ fontWeight: "700" }}>Final: ₹{grandTotal.toFixed(2)}</Text>
+                <Text>Payment: {item.paymentMethod || "-"}</Text>
+              </View>
+
+              {/* Per-order actions */}
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={[styles.iconBtn, { backgroundColor: "#007bff" }]}
+                  onPress={() => navigation.navigate("NewOrder", { orderToEdit: item })}
+                >
+                  <Feather name="edit-3" size={18} color="#fff" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.iconBtn, { backgroundColor: "#FF3B30" }]}
+                  onPress={() => deleteOrder(item.id)}
+                >
+                  <MaterialIcons name="delete-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.iconBtn, { backgroundColor: "#17a2b8" }]}
+                  onPress={() => shareOrderPDF(item)}
+                >
+                  <Ionicons name="share-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        }}
+      />
+    </View>
+  );
+}
+
+// ---------------------- Styles ----------------------
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, backgroundColor: "#fff" },
+
+  // header customer card
+  headerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 15,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginBottom: 14,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#007bff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  avatarText: { color: "#fff", fontWeight: "bold" },
+  title: { fontSize: 16, fontWeight: "700" },
+  subtitle: { fontSize: 13, color: "#555", marginTop: 2 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  saveBtn: { backgroundColor: "#28a745", padding: 8, borderRadius: 6 },
+
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  actionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+
+  orderCard: {
+    backgroundColor: "#f9f9f9",
+    padding: 14,
+    marginBottom: 12,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  orderHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+
+  // status chips
+  statusRow: { flexDirection: "row", marginTop: 8 },
+  statusChip: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "#eee",
+    marginRight: 8,
+  },
+  statusChipText: { color: "#555", fontWeight: "600", fontSize: 12 },
+
+  chipPending: { backgroundColor: "#fff3cd" },
+  chipTextPending: { color: "#7a5d00" },
+  chipInProgress: { backgroundColor: "#ffe4c7" },
+  chipTextInProgress: { color: "#a04b00" },
+  chipComplete: { backgroundColor: "#d4edda" },
+  chipTextComplete: { color: "#1a6632" },
+
+  itemRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 12,
+    flexWrap: "wrap",
+  },
+  iconBtn: {
+    padding: 8,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+});

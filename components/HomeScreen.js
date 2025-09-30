@@ -139,14 +139,6 @@ if (isLoading) {
       </View>
 
       {/* Search Bar */}
-      <TextInput
-        style={styles.searchBar}
-        placeholder="Search by customer name or phone"
-        placeholderTextColor="#888"
-        value={search}
-        onChangeText={setSearch}
-      />
-
       {/* Recent Customers */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Recent Customers</Text>

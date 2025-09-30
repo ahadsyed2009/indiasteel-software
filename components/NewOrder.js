@@ -9,6 +9,8 @@ import {
   Alert,
   Modal,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform
 } from "react-native";
 import { OrderContext } from "./context";
 import { Picker } from "@react-native-picker/picker";
@@ -32,9 +34,13 @@ export default function NewOrder({ navigation, route }) {
   const [customerPhone, setCustomerPhone] = useState(
     orderToEdit?.customerPhone || routeCustomer?.customerPhone || ""
   );
-  const [distance, setDistance] = useState(
-    orderToEdit?.distance ? String(orderToEdit.distance) : ""
+  const [place, setPlace] = useState(
+    orderToEdit?.place || ""
   );
+  const [driverName, setDriverName] = useState(
+    orderToEdit?.driverName || ""
+  );
+
   const [transport, setTransport] = useState(
     orderToEdit?.transport ? String(orderToEdit.transport) : ""
   );
@@ -49,6 +55,33 @@ export default function NewOrder({ navigation, route }) {
     (companies && companies[0]?.name) || ""
   );
 
+  const [showCustomer,setShowCustomer] = useState(false);
+
+  useEffect(() => {
+  if (routeCustomer) {
+    // Find the most recent order for this customer
+    const customerOrders = (orders || [])
+      .filter(o => o.customerPhone === routeCustomer.customerPhone)
+      .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+
+    const lastOrder = customerOrders[0];
+
+    // Set customer details
+    setCustomerName(routeCustomer.customerName || "");
+    setCustomerPhone(routeCustomer.customerPhone || "");
+    
+    // Pre-fill last used details if available
+    if (lastOrder) {
+      setPlace(lastOrder.place || "");
+      setTransport(lastOrder.transport ? String(lastOrder.transport) : "");
+      setDriverName(lastOrder.driverName || "");
+      setPaymentMethod(lastOrder.paymentMethod || "");
+    }
+
+    // Show customer section automatically
+    setShowCustomer(false);
+  }
+}, [routeCustomer, orders]);
   useEffect(() => {
     if (routeCustomer) {
       setCustomerName(routeCustomer.customerName || "");
@@ -119,7 +152,7 @@ export default function NewOrder({ navigation, route }) {
   };
 
   const saveItem = () => {
-    if (!currentItem || !currentItem.itemName || !currentItem.itemQty) {
+    if (!currentItem || !currentItem.itemName || !currentItem.itemQty || !currentItemCompany) {
       return Alert.alert("Error", "Fill all item details");
     }
 
@@ -162,11 +195,11 @@ export default function NewOrder({ navigation, route }) {
     if (!customerName || !customerPhone)
       return Alert.alert("Error", "Enter customer name & phone");
     if (!paymentMethod) return Alert.alert("Error", "Select payment method");
-    if (!distance) return Alert.alert("Error", "Enter distance");
+    if (!place) return Alert.alert("Error", "Enter delivery place");
     if (!items.length) return Alert.alert("Error", "Add at least one item");
 
     const subtotal = orderTotal(items);
-    const transportCost = n(transport); // ✅ manual input
+    const transportCost = n(transport);
     const finalTotal = subtotal + transportCost;
 
     if (orderToEdit) {
@@ -178,7 +211,8 @@ export default function NewOrder({ navigation, route }) {
                 customerName,
                 customerPhone,
                 items,
-                distance: n(distance),
+                place,
+                driverName,
                 paymentMethod,
                 transport: transportCost,
                 subtotal,
@@ -194,7 +228,8 @@ export default function NewOrder({ navigation, route }) {
         customerName,
         customerPhone,
         items,
-        distance: n(distance),
+        place,
+        driverName,
         paymentMethod,
         transport: transportCost,
         subtotal,
@@ -208,7 +243,8 @@ export default function NewOrder({ navigation, route }) {
         customerName,
         customerPhone,
         items,
-        distance: n(distance),
+        place,
+        driverName,
         paymentMethod,
         transport: transportCost,
         subtotal,
@@ -229,9 +265,70 @@ export default function NewOrder({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
+  <KeyboardAvoidingView 
+    behavior={Platform.OS === "ios" ? "padding" : "height"}
+    style={{ flex: 1, }}
+    keyboardVerticalOffset={90}
+  >
+    <ScrollView style={styles.container}>
       <Text style={styles.header}>Add Customer / Order</Text>
+      <ScrollView style={{ maxHeight: 250 }}>
+  {items.map((it) => {
+    const displayName =
+      it.itemName === "Other"
+        ? `Other: ${it.customName || "Unnamed"} (${it.companyName || "No Company"})`
+        : `${it.itemName} (${it.companyName || "No Company"})`;
 
+    const price =
+      it.itemName === "Other"
+        ? Number(it.customPrice || it.itemPrice || 0)
+        : lineTotal(it) / it.itemQty;
+
+    const total = price * it.itemQty;
+
+    return (
+      <View key={it.id} style={styles.card}>
+        <View style={styles.row}>
+          <Text style={styles.itemName}>{displayName}</Text>
+        </View>
+
+        <View style={styles.rowBetween}>
+          <Text style={styles.detail}>Qty: {it.itemQty}</Text>
+          <Text style={styles.detail}>Price: ₹{formatMoney(price)}</Text>
+          <Text style={styles.total}>Total: ₹{formatMoney(total)}</Text>
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity onPress={() => openEditItem(it)} style={styles.editBtn}>
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => removeItem(it.id)} style={styles.deleteBtn}>
+            <Text style={styles.deleteText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  })}
+</ScrollView>
+
+
+     
+
+      <TouchableOpacity
+        style={[styles.btn, { backgroundColor: "#6c5ce7", marginTop: 10, marginBottom: 15 }]}
+        onPress={openNewItem}
+      >
+        <Text style={styles.btnText}>+ Add Item</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.btn, { backgroundColor: "#6c5ce7", marginTop: 10, marginBottom: 15 }]}
+        onPress={()=>setShowCustomer(!showCustomer) }
+      >
+        <Text style={styles.btnText}>{showCustomer ? 'Hide Customer':'Show Customer'}</Text>
+      </TouchableOpacity>
+{showCustomer&&(
+  <>
       <TextInput
         placeholder="Customer Name"
         style={styles.input}
@@ -246,11 +343,10 @@ export default function NewOrder({ navigation, route }) {
         keyboardType="phone-pad"
       />
       <TextInput
-        placeholder="Distance (km)"
+        placeholder="Delivery Place"
         style={styles.input}
-        value={distance}
-        onChangeText={setDistance}
-        keyboardType="numeric"
+        value={place}
+        onChangeText={setPlace}
       />
       <TextInput
         placeholder="Transport (₹)"
@@ -258,6 +354,12 @@ export default function NewOrder({ navigation, route }) {
         value={transport}
         onChangeText={setTransport}
         keyboardType="numeric"
+      />
+      <TextInput
+        placeholder="Driver Name"
+        style={styles.input}
+        value={driverName}
+        onChangeText={setDriverName}
       />
 
       <View style={styles.dropdown}>
@@ -268,59 +370,25 @@ export default function NewOrder({ navigation, route }) {
           ))}
         </Picker>
       </View>
-
-      <ScrollView style={{ maxHeight: 250 }}>
-        {items.map((it) => {
-          const displayName =
-            it.itemName === "Other"
-              ? `Other: ${it.customName || "Unnamed"} (${it.companyName || "No Company"})`
-              : `${it.itemName} (${it.companyName || "No Company"})`;
-
-          const price =
-            it.itemName === "Other"
-              ? Number(it.customPrice || it.itemPrice || 0)
-              : lineTotal(it) / it.itemQty;
-
-          const total = price * it.itemQty;
-
-          return (
-            <View key={it.id} style={styles.itemRow}>
-              <Text style={{ flex: 1 }}>{displayName}</Text>
-              <Text style={{ flex: 1 }}>Qty: {it.itemQty}</Text>
-              <Text style={{ flex: 1 }}>Price: ₹{formatMoney(price)}</Text>
-              <Text style={{ flex: 1 }}>Total: ₹{formatMoney(total)}</Text>
-
-              <TouchableOpacity onPress={() => openEditItem(it)}>
-                <Text style={{ color: "blue" }}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => removeItem(it.id)}>
-                <Text style={{ color: "red" }}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })}
-      </ScrollView>
-
-      <View style={styles.totals}>
+      </>
+      )}
+           <View style={styles.totals}>
         <Text>Order Total: ₹{orderTotal(items).toFixed(2)}</Text>
         <Text>Transport: ₹{n(transport).toFixed(2)}</Text>
         <Text style={{ fontWeight: "700" }}>
           Final Total: ₹{(orderTotal(items) + n(transport)).toFixed(2)}
         </Text>
       </View>
-
-      <TouchableOpacity
-        style={[styles.btn, { backgroundColor: "#6c5ce7", marginTop: 10 }]}
-        onPress={openNewItem}
-      >
-        <Text style={styles.btnText}>+ Add Item</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={[styles.btn, { marginTop: 12 }]} onPress={submit}>
+      <TouchableOpacity style={[styles.btn, { marginTop: 12 , marginBottom:30,}]} onPress={submit}>
         <Text style={styles.btnText}>{orderToEdit ? "Update Order" : "Save Order"}</Text>
       </TouchableOpacity>
 
-      <Modal visible={modalVisible} animationType="slide" transparent>
+      <Modal visible={modalVisible} animationType="none" transparent>
+         <KeyboardAvoidingView 
+    behavior={Platform.OS === "ios" ? "padding" : "height"}
+    style={{ flex: 1 }}
+    keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 40}
+  >
         <View style={styles.modalBg}>
           <View style={styles.modalContent}>
             <Text style={styles.itemHeader}>Item Details</Text>
@@ -336,7 +404,35 @@ export default function NewOrder({ navigation, route }) {
                 <Picker.Item label="Other" value="Other" />
               </Picker>
             </View>
-
+            {currentItem && currentItem.itemName !== "Other" && (
+  <View style={styles.dropdown}>
+    <Picker
+      selectedValue={currentItemCompany}
+      onValueChange={(v) => setCurrentItemCompany(v)}
+    >
+      <Picker.Item label="Select Company" value="" />
+      {(companies || [])
+        .filter((company) => {
+          if (!currentItem?.itemName) return false;
+          
+          if (currentItem.itemName.toLowerCase() === "steel") {
+            // Only show companies that have steel prices
+            return company.steelPrice && company.steelPrice > 0;
+          }
+          
+          if (currentItem.itemName.toLowerCase() === "cement") {
+            // Only show companies that have cement prices
+            return company.cementPrice && company.cementPrice > 0;
+          }
+          
+          return false; // Don't show companies for other items
+        })
+        .map((company) => (
+          <Picker.Item key={company.name} label={company.name} value={company.name} />
+        ))}
+    </Picker>
+  </View>
+)}
             {currentItem?.itemName === "Other" && (
               <>
                 <TextInput
@@ -363,26 +459,7 @@ export default function NewOrder({ navigation, route }) {
               onChangeText={(t) => setCurrentItem((c) => ({ ...c, itemQty: t }))}
             />
 
-            {currentItem && currentItem.itemName !== "Other" && (
-              <View style={styles.dropdown}>
-                <Picker
-                  selectedValue={currentItemCompany}
-                  onValueChange={(v) => setCurrentItemCompany(v)}
-                >
-                  {(companies || [])
-                    .filter((c) => {
-                      if (!currentItem) return true;
-                      const name = currentItem.itemName.toLowerCase();
-                      if (name.includes("steel")) return c.steelPrice > 0;
-                      if (name.includes("cement")) return c.cementPrice > 0;
-                      return true;
-                    })
-                    .map((c) => (
-                      <Picker.Item key={c.name} label={c.name} value={c.name} />
-                    ))}
-                </Picker>
-              </View>
-            )}
+           
 
             <Text style={{ marginVertical: 6 }}>
               Line Total: ₹
@@ -406,8 +483,10 @@ export default function NewOrder({ navigation, route }) {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -449,4 +528,61 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: { width: "90%", backgroundColor: "#fff", borderRadius: 8, padding: 15 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  row: {
+    marginBottom: 6,
+  },
+  rowBetween: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  itemName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#222",
+  },
+  detail: {
+    fontSize: 14,
+    color: "#555",
+  },
+  total: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1a73e8",
+  },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  editBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: "#e8f0fe",
+    borderRadius: 6,
+  },
+  deleteBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: "#fdecea",
+    borderRadius: 6,
+  },
+  editText: {
+    color: "#1a73e8",
+    fontWeight: "500",
+  },
+  deleteText: {
+    color: "#d93025",
+    fontWeight: "500",
+  },
 });

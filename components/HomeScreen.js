@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   StatusBar,
   Linking,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -23,7 +24,7 @@ const orderTotal = (o) =>
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { orders, Username } = useContext(OrderContext);
+  const { orders, Username,isLoading } = useContext(OrderContext);
   const [search, setSearch] = useState("");
 
   // Group orders by customer phone
@@ -75,7 +76,7 @@ const totalCustomers = groupedCustomers.length;
       const lastB = Math.max(...b.orders.map((o) => o.createdAtMs || 0));
       return lastB - lastA;
     })
-    .slice(0, 5); // ✅ Show only 5 on HomeScreen
+    .slice(0, 4); // ✅ Show only 5 on HomeScreen
 
 
   // Dashboard cards
@@ -99,6 +100,15 @@ const callCustomer = (phone) => {
     Alert.alert("Error", "Cannot open phone dialer. Try on a real device.");
   });
 };
+
+if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#007BFF" />
+        <Text style={{ marginTop: 10, fontSize: 16, color: "#007BFF" }}>Loading orders...</Text>
+      </View>
+    );
+  }
 
 
   return (
@@ -175,7 +185,14 @@ const callCustomer = (phone) => {
               <View style={styles.actionBtns}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: "#28a745" }]}
-                  onPress={() => navigation.navigate("NewOrder", { customer: item })}
+                  onPress={() =>
+  navigation.navigate("NewOrder", {
+    customer: item,
+
+  })
+}
+
+
                 >
                   <Ionicons name="add-circle-outline" size={22} color="#fff" />
                 </TouchableOpacity>

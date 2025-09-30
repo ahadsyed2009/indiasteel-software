@@ -19,7 +19,7 @@ export const OrderProvider = ({ children }) => {
 ]);
 
   const [Username, setUsername] = useState("");
-
+  const [isLoading,setIsLoading] = useState(true);
   // Prevent multiple listeners on hot reload
   const userId = auth.currentUser?.uid;
 
@@ -38,6 +38,7 @@ export const OrderProvider = ({ children }) => {
       }));
       setOrders(ordersList);
       console.log("Orders loaded:", ordersList);
+      setIsLoading(false);
     } else {
       console.log("No orders found for user:", userId);
     }
@@ -100,6 +101,8 @@ export const OrderProvider = ({ children }) => {
         setCompanies,
         Username,
         setUsername: handleSetUsername,
+        isLoading,
+        setIsLoading
       }}
     >
       {children}

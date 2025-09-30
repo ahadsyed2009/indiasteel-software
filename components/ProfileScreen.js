@@ -1,4 +1,3 @@
-// components/ProfilePage.js
 import React, { useContext, useState, useEffect } from "react";
 import {
   View,
@@ -11,39 +10,32 @@ import {
 import { OrderContext } from "./context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { auth } from "../firebase";  
-import { signOut } from "firebase/auth";   // ✅ import logout
+import { auth } from "../firebase";
+import { signOut } from "firebase/auth";
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const { Username } = useContext(OrderContext);
 
-  // Profile state
-  const [bio, setBio] = useState("Welcome to IndiaSteel 🏗️ — your trusted partner in building materials...");
-  const [email, setEmail] = useState("");  
+  const [bio, setBio] = useState(
+    "Welcome to IndiaSteel 🏗️ — your trusted partner in building materials..."
+  );
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("+91 9876543210");
   const [joined, setJoined] = useState("September 2025");
-
-  // Edit state
   const [isEditing, setIsEditing] = useState(false);
 
-  // ✅ Fetch email from Firebase auth
   useEffect(() => {
     const user = auth.currentUser;
-    if (user) {
-      setEmail(user.email);
-    }
+    if (user) setEmail(user.email);
   }, []);
 
-  const handleSave = () => {
-    setIsEditing(false);
-  };
+  const handleSave = () => setIsEditing(false);
 
-  // ✅ Logout function
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      navigation.replace("LoginScreen"); // 👈 send user back to login
+      // Auth state will redirect automatically to Login
     } catch (error) {
       console.log("Logout error: ", error);
     }
@@ -51,12 +43,11 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Profile Header */}
-      <View style={styles.header}>
+      {/* Profile Card */}
+      <View style={styles.profileCard}>
         <Ionicons name="person-circle" size={100} color="#007BFF" />
         <Text style={styles.username}>{Username}</Text>
 
-        {/* Bio Section */}
         {isEditing ? (
           <TextInput
             style={styles.bioInput}
@@ -68,12 +59,27 @@ export default function ProfileScreen() {
           <Text style={styles.bio}>{bio}</Text>
         )}
 
-        {/* Settings Button */}
+        {/* Settings button */}
         <TouchableOpacity
           style={styles.settingsBtnTop}
           onPress={() => navigation.navigate("SettingsScreen")}
         >
           <Ionicons name="settings" size={20} color="#333" />
+        </TouchableOpacity>
+
+        {/* Edit button */}
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => (isEditing ? handleSave() : setIsEditing(true))}
+        >
+          <Ionicons
+            name={isEditing ? "checkmark" : "pencil"}
+            size={16}
+            color="#fff"
+          />
+          <Text style={styles.editText}>
+            {isEditing ? " Save" : " Edit Profile"}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -106,25 +112,8 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      {/* Action Button */}
-      <View style={{ alignItems: "center", marginTop: 10 }}>
-        {isEditing ? (
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveText}>Save</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => setIsEditing(true)}
-          >
-            <Ionicons name="pencil" size={16} color="#fff" />
-            <Text style={styles.editText}> Edit Profile</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* ✅ Logout Button at bottom */}
-      <View style={{ alignItems: "center", marginTop: 30 }}>
+      {/* Logout Button */}
+      <View style={{ alignItems: "center", marginTop: 20 }}>
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out" size={16} color="#fff" />
           <Text style={styles.logoutText}> Log Out</Text>
@@ -135,54 +124,53 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: "#fafafa", paddingBottom: 40 },
-  header: {
+  container: { flexGrow: 1, padding: 20, backgroundColor: "#f9f9f9" },
+  profileCard: {
     backgroundColor: "#fff",
-    paddingVertical: 30,
-    paddingHorizontal: 20,
+    borderRadius: 16,
+    padding: 20,
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e6e6e6",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+    marginBottom: 20,
     position: "relative",
   },
-  username: { fontSize: 24, fontWeight: "700", color: "#222", marginTop: 8 },
-  bio: {
-    fontSize: 14,
-    color: "#555",
-    marginTop: 6,
-    textAlign: "center",
-    paddingHorizontal: 20,
-  },
+  username: { fontSize: 22, fontWeight: "700", color: "#222", marginTop: 8 },
+  bio: { fontSize: 14, color: "#555", marginTop: 6, textAlign: "center" },
   bioInput: {
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 10,
-    padding: 10,
+    padding: 8,
     fontSize: 14,
     color: "#222",
     marginTop: 6,
-    width: "90%",
+    width: "100%",
     textAlignVertical: "top",
     backgroundColor: "#fafafa",
   },
-  settingsBtnTop: {
-    position: "absolute",
-    right: 20,
-    top: 20,
-    backgroundColor: "#f0f0f0",
-    padding: 8,
-    borderRadius: 20,
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#007BFF",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginTop: 12,
   },
+  editText: { color: "#fff", fontSize: 14, marginLeft: 6, fontWeight: "600" },
   card: {
     backgroundColor: "#fff",
-    margin: 20,
     borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
     shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   label: { fontSize: 14, fontWeight: "600", color: "#555", marginTop: 12 },
   value: { fontSize: 16, color: "#222", marginTop: 4 },
@@ -190,32 +178,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 10,
-    padding: 10,
+    padding: 8,
     fontSize: 16,
     color: "#222",
     marginTop: 4,
     backgroundColor: "#fafafa",
   },
-  editBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#007BFF",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-  },
-  editText: { color: "#fff", fontSize: 14, marginLeft: 6, fontWeight: "600" },
-  saveBtn: {
-    backgroundColor: "#28a745",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-  },
-  saveText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#dc3545", // red
+    backgroundColor: "#dc3545",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 10,
@@ -225,5 +197,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 6,
     fontWeight: "600",
+  },
+  settingsBtnTop: {
+    position: "absolute",
+    right: 20,
+    top: 20,
+    backgroundColor: "#f0f0f0",
+    padding: 8,
+    borderRadius: 20,
   },
 });

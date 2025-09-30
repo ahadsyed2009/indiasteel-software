@@ -1,5 +1,6 @@
 // App.js
 import React, { useEffect, useState } from "react";
+import {ActivityIndicator, View,Text} from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { OrderProvider } from "./components/context";
@@ -31,7 +32,12 @@ export default function App() {
   }, []);
 
   if (loading) {
-    return null; // 👈 you can show splash screen here
+     return (
+    <View>
+      <ActivityIndicator size="large" color="#007BFF" />
+      <Text>Loading data...</Text>
+    </View>
+  ); // 👈 you can show splash screen here
   }
 
   return (

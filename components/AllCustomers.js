@@ -7,19 +7,16 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Linking,
-  Alert,
 } from "react-native";
 import { OrderContext } from "./context";
 import { Ionicons } from "@expo/vector-icons";
 
-
 export default function AllCustomers({ navigation }) {
   const { orders } = useContext(OrderContext);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All"); // ✅ default
+  const [statusFilter, setStatusFilter] = useState("All");
 
-  // ✅ Filter valid orders
+  // ✅ Ensure valid orders
   const validOrders = (orders || []).filter((o) => o && o.customerName);
 
   // ✅ Group orders by customer
@@ -32,53 +29,40 @@ export default function AllCustomers({ navigation }) {
     });
 
     return Object.values(map).map((arr) => {
+      // Determine overall status
       let status = "Completed";
       if (arr.some((o) => o.status === "Pending")) status = "Pending";
-      else if (arr.some((o) => o.status === "In Progress")) status = "In Progress";
+      else if (arr.some((o) => o.status === "In Progress"))
+        status = "In Progress";
 
       return {
-        phone: arr[0].customerPhone,
-        name: arr[0].customerName,
+        phone: arr[0].customerPhone || "N/A",
+        name: arr[0].customerName || "N/A",
         orders: arr,
         status,
+        totalOrders: arr.length,
       };
     });
   };
 
   // ✅ Apply search + filter
-  const filteredCustomers = getCustomers().filter((c) => {
+  let filteredCustomers = getCustomers().filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       (c.phone || "").includes(search);
 
-    const matchesStatus =
-      statusFilter === "All" || c.status === statusFilter;
-
+    const matchesStatus = statusFilter === "All" || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  // ✅ Card color by status
-  const getCardColor = (status) => {
-    if (status === "Pending") return "#f79d9dff";
-    if (status === "In Progress") return "#f1cf99ff";
-    if (status === "Completed") return "#a9f7a1a2";
-    return "#f6f6f6";
-  };
-
-  // ✅ Call customer
-  const callCustomer = (phone) => {
-  if (!phone) {
-    Alert.alert("Error", "No phone number available");
-    return;
-  }
-
-  const url = `tel:${phone}`;
-
-  Linking.openURL(url).catch(() => {
-    Alert.alert("Error", "Cannot open phone dialer. Try on a real device.");
-  });
-};
-
+  // ✅ Sort by last order date and limit to 5
+  filteredCustomers = filteredCustomers
+    .sort((a, b) => {
+      const lastA = Math.max(...a.orders.map((o) => o.createdAtMs || 0));
+      const lastB = Math.max(...b.orders.map((o) => o.createdAtMs || 0));
+      return lastB - lastA;
+    })
+    .slice(0, 5);
 
   return (
     <View style={styles.container}>
@@ -124,28 +108,29 @@ export default function AllCustomers({ navigation }) {
             activeOpacity={0.8}
             onPress={() =>
               navigation.navigate("CustomerDetails", {
-                customerPhone: item.phone, // ✅ Pass phone for filtering
+                customerPhone: item.phone,
               })
             }
           >
-            <View
-              style={[styles.card, { backgroundColor: getCardColor(item.status) }]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.sub}>{item.phone}</Text>
-                <Text style={styles.count}>
-                  {item.orders.length} order(s) • {item.status}
+            <View style={styles.card}>
+              {/* 🟦 Avatar Circle */}
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {item.name?.substring(0, 2).toUpperCase()}
                 </Text>
               </View>
 
-              {/* 📞 Call Button */}
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={() => callCustomer(item.phone)}
-              >
-                <Ionicons name="call-outline" size={20} color="#fff" />
-              </TouchableOpacity>
+              {/* 📋 Info */}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.sub}>
+                  {item.totalOrders} order{item.totalOrders > 1 ? "s" : ""} •
+                  Status: {item.status}
+                </Text>
+              </View>
+
+              {/* ➡️ Chevron */}
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </View>
           </TouchableOpacity>
         )}
@@ -159,6 +144,7 @@ export default function AllCustomers({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 12, backgroundColor: "#fff" },
+
   searchRow: { flexDirection: "row", marginBottom: 12 },
   search: {
     flex: 1,
@@ -167,6 +153,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
   },
+
   filterRow: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -189,23 +176,44 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
+
   card: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#fff",
     borderRadius: 12,
+    padding: 14,
     marginBottom: 10,
-    padding: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  name: { fontWeight: "700", fontSize: 16 },
-  sub: { color: "#555", marginTop: 4 },
-  count: { marginTop: 6, color: "#777" },
-  actionBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#2563eb",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#28a745",
-    marginLeft: 8,
+    marginRight: 12,
+  },
+  avatarText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+
+  name: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  sub: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginTop: 2,
   },
 });

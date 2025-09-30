@@ -10,6 +10,8 @@ import {
   Alert,
   Modal,
   ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -166,7 +168,8 @@ export default function SettingsScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <TouchableWithoutFeedback  onPress={Keyboard.dismiss} accessible={false}>
+<ScrollView style={styles.container}>
       <Text style={styles.title}>Company Prices Settings</Text>
 
       {/* Add new company */}
@@ -180,7 +183,7 @@ export default function SettingsScreen() {
 
         <Picker
           selectedValue={type}
-          style={styles.input}
+          style={styles.Picker}
           onValueChange={(value) => setType(value)}
         >
           <Picker.Item label="Steel" value="steel" />
@@ -283,7 +286,8 @@ export default function SettingsScreen() {
         animationType="slide"
         transparent={true}
       >
-        <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback  onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <ScrollView>
               <Text style={styles.modalTitle}>Edit Company</Text>
@@ -375,8 +379,10 @@ export default function SettingsScreen() {
             </ScrollView>
           </View>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
-    </View>
+    </ScrollView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -463,4 +469,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: "center",
   },
+  Picker:{
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    backgroundColor: "#fff",
+    marginVertical: 6,
+  }
 });

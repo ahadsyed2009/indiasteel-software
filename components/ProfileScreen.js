@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Modal,
 } from "react-native";
 import { OrderContext } from "./context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Entypo } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
@@ -24,6 +25,7 @@ export default function ProfileScreen() {
   const [phone, setPhone] = useState("+91 9876543210");
   const [joined, setJoined] = useState("September 2025");
   const [isEditing, setIsEditing] = useState(false);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -59,28 +61,36 @@ export default function ProfileScreen() {
           <Text style={styles.bio}>{bio}</Text>
         )}
 
-        {/* Settings button */}
+        {/* 3-Dot Dropdown */}
         <TouchableOpacity
           style={styles.settingsBtnTop}
-          onPress={() => navigation.navigate("SettingsScreen")}
+          onPress={() => setDropdownVisible(!dropdownVisible)}
         >
-          <Ionicons name="settings" size={20} color="#333" />
+          <Entypo name="dots-three-vertical" size={20} color="#333" />
         </TouchableOpacity>
 
-        {/* Edit button */}
-        <TouchableOpacity
-          style={styles.editBtn}
-          onPress={() => (isEditing ? handleSave() : setIsEditing(true))}
-        >
-          <Ionicons
-            name={isEditing ? "checkmark" : "pencil"}
-            size={16}
-            color="#fff"
-          />
-          <Text style={styles.editText}>
-            {isEditing ? " Save" : " Edit Profile"}
-          </Text>
-        </TouchableOpacity>
+        {dropdownVisible && (
+          <View style={styles.dropdown}>
+            <TouchableOpacity
+              style={styles.dropdownItem}
+              onPress={() => {
+                setIsEditing(true);
+                setDropdownVisible(false);
+              }}
+            >
+              <Text style={styles.dropdownText}>Edit Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dropdownItem}
+              onPress={() => {
+                navigation.navigate("SettingsScreen");
+                setDropdownVisible(false);
+              }}
+            >
+              <Text style={styles.dropdownText}>Settings</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Info Card */}
@@ -110,15 +120,15 @@ export default function ProfileScreen() {
         ) : (
           <Text style={styles.value}>{joined}</Text>
         )}
+
+        {isEditing && (
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+            <Text style={styles.saveText}>Save</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Logout Button */}
-      <View style={{ alignItems: "center", marginTop: 20 }}>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out" size={16} color="#fff" />
-          <Text style={styles.logoutText}> Log Out</Text>
-        </TouchableOpacity>
-      </View>
+     
     </ScrollView>
   );
 }
@@ -152,16 +162,6 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     backgroundColor: "#fafafa",
   },
-  editBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#007BFF",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    marginTop: 12,
-  },
-  editText: { color: "#fff", fontSize: 14, marginLeft: 6, fontWeight: "600" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -206,4 +206,35 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
   },
+  dropdown: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+    zIndex: 100,
+  },
+  dropdownItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  dropdownText: {
+    fontSize: 14,
+    color: "#333",
+  },
+  saveBtn: {
+    marginTop: 20,
+    backgroundColor: "#007BFF",
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  saveText: { color: "#fff", fontWeight: "600" },
 });

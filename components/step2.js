@@ -1,17 +1,21 @@
 // components/Step2.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
+import { db } from "../firebase"; // adjust path if needed
+import { ref, onValue, set } from "firebase/database";
+import { auth } from "../firebase";
 
 const paymentOptions = ["Cash", "Credit", "UPI"];
 
-export default function Step2({ 
+export default function Step2({
   customerName,
   setCustomerName,
   customerPhone,
@@ -28,19 +32,72 @@ export default function Step2({
   onBack,
 }) {
   const [step2Errors, setStep2Errors] = useState({});
+  const [customers, setCustomers] = useState([]);
+  const userId = auth.currentUser?.uid;
+  // Fetch existing customers
+  useEffect(() => {
+    const customersRef = ref(db, `userOrders/${userId}/customers`);
+    const unsubscribe = onValue(customersRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      setCustomers(Object.values(data));
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const handleNext = () => {
+  // 🔍 Auto-fill if name or phone matches
+  useEffect(() => {
+    if (!customerName && !customerPhone) return;
+    const foundCustomer = customers.find(
+      (c) =>
+        c.customerName?.toLowerCase() === customerName?.toLowerCase() ||
+        c.customerPhone === customerPhone
+    );
+    if (foundCustomer) {
+      setCustomerName(foundCustomer.customerName);
+      setCustomerPhone(foundCustomer.customerPhone);
+      setPlace(foundCustomer.place || "");
+      setPaymentMethod(foundCustomer.paymentMethod || "");
+      setTransport(foundCustomer.transport || "");
+      setDriverName(foundCustomer.driverName || "");
+    }
+  }, [customerName, customerPhone]);
+
+  // 🚀 Validate and continue
+  const handleNext = async () => {
     let errors = {};
     if (!customerName) errors.customerName = "Enter customer name!";
     if (!customerPhone) errors.customerPhone = "Enter customer phone!";
     if (!place) errors.place = "Enter delivery place!";
     if (!paymentMethod) errors.paymentMethod = "Select payment method!";
-    
     if (Object.keys(errors).length > 0) {
       setStep2Errors(errors);
       return;
     }
-    
+
+    const existingCustomer = customers.find(
+      (c) =>
+        c.customerName?.toLowerCase() === customerName.toLowerCase() ||
+        c.customerPhone === customerPhone
+    );
+
+    // If not existing, save new customer
+    if (!existingCustomer) {
+      const id = customerPhone || Date.now().toString();
+      const newCustomer = {
+        customerName,
+        customerPhone,
+        place,
+        transport,
+        driverName,
+        paymentMethod,
+        createdAt: new Date().toISOString(),
+      };
+      await set(ref(db, `userOrders/${userId}/customers/${id}`), newCustomer);
+      Alert.alert("✅ New customer added");
+    } else {
+      console.log("Customer already exists, using existing data");
+    }
+
     setStep2Errors({});
     onNext();
   };
@@ -50,10 +107,13 @@ export default function Step2({
       <View style={styles.formCard}>
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Customer Name *</Text>
-          <TextInput 
-            placeholder="Enter customer name" 
-            style={[styles.textInput, step2Errors.customerName && styles.inputError]} 
-            value={customerName} 
+          <TextInput
+            placeholder="Enter customer name"
+            style={[
+              styles.textInput,
+              step2Errors.customerName && styles.inputError,
+            ]}
+            value={customerName}
             onChangeText={setCustomerName}
             placeholderTextColor="#9CA3AF"
           />
@@ -64,11 +124,14 @@ export default function Step2({
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Phone Number *</Text>
-          <TextInput 
-            placeholder="Enter phone number" 
-            style={[styles.textInput, step2Errors.customerPhone && styles.inputError]} 
-            value={customerPhone} 
-            onChangeText={setCustomerPhone} 
+          <TextInput
+            placeholder="Enter phone number"
+            style={[
+              styles.textInput,
+              step2Errors.customerPhone && styles.inputError,
+            ]}
+            value={customerPhone}
+            onChangeText={setCustomerPhone}
             keyboardType="phone-pad"
             placeholderTextColor="#9CA3AF"
           />
@@ -79,10 +142,13 @@ export default function Step2({
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Delivery Place *</Text>
-          <TextInput 
-            placeholder="Enter delivery location" 
-            style={[styles.textInput, step2Errors.place && styles.inputError]} 
-            value={place} 
+          <TextInput
+            placeholder="Enter delivery location"
+            style={[
+              styles.textInput,
+              step2Errors.place && styles.inputError,
+            ]}
+            value={place}
             onChangeText={setPlace}
             placeholderTextColor="#9CA3AF"
           />
@@ -93,11 +159,11 @@ export default function Step2({
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Transport Cost</Text>
-          <TextInput 
-            placeholder="Enter transport cost (₹)" 
-            style={styles.textInput} 
-            value={transport} 
-            onChangeText={setTransport} 
+          <TextInput
+            placeholder="Enter transport cost (₹)"
+            style={styles.textInput}
+            value={transport}
+            onChangeText={setTransport}
             keyboardType="numeric"
             placeholderTextColor="#9CA3AF"
           />
@@ -105,10 +171,10 @@ export default function Step2({
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Driver Name</Text>
-          <TextInput 
-            placeholder="Enter driver name (optional)" 
-            style={styles.textInput} 
-            value={driverName} 
+          <TextInput
+            placeholder="Enter driver name (optional)"
+            style={styles.textInput}
+            value={driverName}
             onChangeText={setDriverName}
             placeholderTextColor="#9CA3AF"
           />
@@ -116,9 +182,14 @@ export default function Step2({
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Payment Method *</Text>
-          <View style={[styles.pickerContainer, step2Errors.paymentMethod && styles.inputError]}>
-            <Picker 
-              selectedValue={paymentMethod} 
+          <View
+            style={[
+              styles.pickerContainer,
+              step2Errors.paymentMethod && styles.inputError,
+            ]}
+          >
+            <Picker
+              selectedValue={paymentMethod}
               onValueChange={(v) => setPaymentMethod(v)}
               style={styles.picker}
             >
@@ -135,17 +206,11 @@ export default function Step2({
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={onBack}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.nextButton} 
-          onPress={handleNext}
-        >
+
+        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
           <Text style={styles.nextButtonText}>Continue</Text>
         </TouchableOpacity>
       </View>
@@ -154,9 +219,7 @@ export default function Step2({
 }
 
 const styles = StyleSheet.create({
-  stepContent: {
-    flex: 1,
-  },
+  stepContent: { flex: 1 },
   formCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
@@ -168,9 +231,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  inputGroup: {
-    marginBottom: 16,
-  },
+  inputGroup: { marginBottom: 16 },
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
@@ -186,9 +247,7 @@ const styles = StyleSheet.create({
     color: "#111827",
     backgroundColor: "#FFFFFF",
   },
-  inputError: {
-    borderColor: "#EF4444",
-  },
+  inputError: { borderColor: "#EF4444" },
   fieldError: {
     fontSize: 12,
     color: "#EF4444",
@@ -202,13 +261,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     overflow: "hidden",
   },
-  picker: {
-    height: 50,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    gap: 12,
-  },
+  picker: { height: 50 },
+  buttonContainer: { flexDirection: "row", gap: 12 },
   backButton: {
     flex: 1,
     backgroundColor: "#E5E7EB",
@@ -216,11 +270,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
-  backButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-  },
+  backButtonText: { fontSize: 14, fontWeight: "600", color: "#111827" },
   nextButton: {
     flex: 1,
     backgroundColor: "#3B82F6",
@@ -228,9 +278,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
-  nextButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
+  nextButtonText: { fontSize: 14, fontWeight: "600", color: "#FFFFFF" },
 });

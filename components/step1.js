@@ -15,56 +15,49 @@ const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
 const lineTotal = (it) => n(it.itemQty) * n(it.itemPrice);
 
 export default function Step1({ items = [], setItems, companies = [], onNext }) {
-  const [newItem, setNewItem] = useState({ 
-    itemName: "", 
-    itemQty: "", 
-    customName: "", 
-    customPrice: "" 
+  const [newItem, setNewItem] = useState({
+    itemName: "",
+    itemQty: "",
+    customName: "",
+    customPrice: "",
   });
   const [newItemCompany, setNewItemCompany] = useState("");
+  const [newItemDiameter, setNewItemDiameter] = useState(""); // for steel
   const [step1Error, setStep1Error] = useState("");
 
- const calculateUnitPrice = (item, companyName) => {
-  if (!item || !companyName) return 0;
-  const name = (item.itemName || "").toLowerCase();
-  const company = (companies || []).find((c) => c.name === companyName);
-  if (!company) return 0;
+  const calculateUnitPrice = (item, companyName, diameter) => {
+    const company = companies.find((c) => c.name === companyName);
+    if (!company) return 0;
 
-  // 🔧 Corrected logic
-  if (name.includes("steel")) {
-    const qty = company.steelQty && company.steelQty > 0 ? company.steelQty : 1;
-    const price = company.steelPrice && company.steelPrice > 0 ? company.steelPrice : 650;
-    return price / qty; // ✅ price per kg
-  }
+    const name = (item.itemName || "").toLowerCase();
 
-  if (name.includes("cement")) {
-    const qty = company.cementQty && company.cementQty > 0 ? company.cementQty : 1;
-    const price = company.cementPrice && company.cementPrice > 0 ? company.cementPrice : 350;
-    return price / qty; // ✅ price per bag
-  }
+    if (name === "steel") {
+      const steel = company.steelDetails?.find((s) => s.diameter === diameter);
+      return steel ? n(steel.price) / n(steel.qty) : 650; // fallback
+    }
 
-  return n(item.itemPrice);
-};
+    if (name === "cement") {
+      return n(company.cementPrice) / n(company.cementQty || 1);
+    }
 
+    return n(item.customPrice);
+  };
 
   const addNewItem = () => {
-    if (!newItem.itemName || !newItem.itemQty) {
-      return Alert.alert("Error", "Fill item details");
-    }
-    if ((newItem.itemName || "").toLowerCase() !== "other" && !newItemCompany) {
-      return Alert.alert("Error", "Select a company");
-    }
+    if (!newItem.itemName || !newItem.itemQty) return Alert.alert("Error", "Fill item details");
+    if (newItem.itemName !== "Other" && !newItemCompany) return Alert.alert("Error", "Select company");
+    if (newItem.itemName === "Steel" && !newItemDiameter) return Alert.alert("Error", "Select steel diameter");
 
-    const qty = n(newItem.itemQty);
     const unitPrice =
-      (newItem.itemName || "").toLowerCase() === "other"
+      newItem.itemName === "Other"
         ? n(newItem.customPrice)
-        : calculateUnitPrice(newItem, newItemCompany);
+        : calculateUnitPrice(newItem, newItemCompany, newItemDiameter);
 
     const itemToSave = {
       id: Date.now().toString(),
       ...newItem,
-      itemQty: qty,
+      diameter: newItemDiameter || "",
+      itemQty: n(newItem.itemQty),
       itemPrice: unitPrice,
       companyName: newItemCompany,
     };
@@ -72,6 +65,7 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
     setItems((prev) => [...prev, itemToSave]);
     setNewItem({ itemName: "", itemQty: "", customName: "", customPrice: "" });
     setNewItemCompany("");
+    setNewItemDiameter("");
     setStep1Error("");
   };
 
@@ -89,7 +83,7 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
   const formatMoney = (v) => (Number(v) || 0).toFixed(2);
 
   return (
-    <View style={styles.stepContent}>
+    <ScrollView style={styles.stepContent}>
       {step1Error ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorIcon}>⚠️</Text>
@@ -98,18 +92,13 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
       ) : null}
 
       <View style={styles.addItemCard}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Add Item</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>New</Text>
-          </View>
-        </View>
+        <Text style={styles.cardTitle}>Add Item</Text>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Item Type</Text>
           <View style={styles.pickerContainer}>
-            <Picker 
-              selectedValue={newItem.itemName} 
+            <Picker
+              selectedValue={newItem.itemName}
               onValueChange={(v) => setNewItem((c) => ({ ...c, itemName: v }))}
               style={styles.picker}
             >
@@ -121,51 +110,74 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
           </View>
         </View>
 
+        {/* Company Picker for Steel/Cement */}
         {newItem.itemName && newItem.itemName !== "Other" && (
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Company</Text>
             <View style={styles.pickerContainer}>
-              <Picker 
-                selectedValue={newItemCompany} 
+              <Picker
+                selectedValue={newItemCompany}
                 onValueChange={setNewItemCompany}
                 style={styles.picker}
               >
                 <Picker.Item label="Select Company" value="" />
                 {(companies || [])
-                  .filter((company) => {
-                    if (newItem.itemName.toLowerCase() === "steel") return company.steelPrice > 0;
-                    if (newItem.itemName.toLowerCase() === "cement") return company.cementPrice > 0;
+                  .filter((c) => {
+                    if (newItem.itemName === "Steel") return c.steelDetails?.length > 0;
+                    if (newItem.itemName === "Cement") return c.cementPrice > 0;
                     return false;
                   })
-                  .map((company) => (
-                    <Picker.Item key={company.name} label={company.name} value={company.name} />
+                  .map((c) => (
+                    <Picker.Item key={c.name} label={c.name} value={c.name} />
                   ))}
               </Picker>
             </View>
           </View>
         )}
 
+        {/* Steel Diameter Picker */}
+        {newItem.itemName === "Steel" && newItemCompany && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Steel Diameter</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={newItemDiameter}
+                onValueChange={setNewItemDiameter}
+                style={styles.picker}
+              >
+                <Picker.Item label="Select Diameter" value="" />
+                {(companies.find((c) => c.name === newItemCompany)?.steelDetails || []).map((s) => (
+                  <Picker.Item
+                    key={s.diameter}
+                    label={`${s.diameter} - ₹${s.price}`}
+                    value={s.diameter}
+                  />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        )}
+
+        {/* Custom Item */}
         {newItem.itemName === "Other" && (
           <>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Item Name</Text>
-              <TextInput 
-                placeholder="Enter item name" 
-                style={styles.textInput} 
-                value={newItem.customName} 
+              <TextInput
+                placeholder="Enter item name"
+                style={styles.textInput}
+                value={newItem.customName}
                 onChangeText={(t) => setNewItem((c) => ({ ...c, customName: t }))}
-                placeholderTextColor="#9CA3AF"
               />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Price per Unit</Text>
-              <TextInput 
-                placeholder="Enter price" 
-                keyboardType="numeric" 
-                style={styles.textInput} 
-                value={newItem.customPrice} 
+              <TextInput
+                placeholder="Enter price"
+                keyboardType="numeric"
+                style={styles.textInput}
+                value={newItem.customPrice}
                 onChangeText={(t) => setNewItem((c) => ({ ...c, customPrice: t }))}
-                placeholderTextColor="#9CA3AF"
               />
             </View>
           </>
@@ -173,13 +185,12 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Quantity</Text>
-          <TextInput 
-            placeholder="Enter quantity" 
-            style={styles.textInput} 
-            keyboardType="numeric" 
-            value={newItem.itemQty} 
+          <TextInput
+            placeholder="Enter quantity"
+            keyboardType="numeric"
+            style={styles.textInput}
+            value={newItem.itemQty}
             onChangeText={(t) => setNewItem((c) => ({ ...c, itemQty: t }))}
-            placeholderTextColor="#9CA3AF"
           />
         </View>
 
@@ -188,286 +199,85 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
         </TouchableOpacity>
       </View>
 
-      <View style={styles.itemsListHeader}>
-        <Text style={styles.itemsListTitle}>Order Items</Text>
-        <View style={styles.itemCount}>
-          <Text style={styles.itemCountText}>{(items || []).length}</Text>
-        </View>
-      </View>
-
+      <Text style={styles.itemsListTitle}>Order Items</Text>
       {items.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📦</Text>
           <Text style={styles.emptyTitle}>No items added yet</Text>
-          <Text style={styles.emptySubtitle}>Add your first item to get started</Text>
         </View>
       ) : (
-        (items || []).map((it) => (
+        items.map((it) => (
           <View key={it.id} style={styles.itemCard}>
             <View style={styles.itemHeader}>
-              <View style={styles.itemTitleRow}>
-                <Text style={styles.itemTitle}>
-                  {it.itemName === "Other" ? it.customName : it.itemName}
-                </Text>
-                <TouchableOpacity onPress={() => removeItem(it.id)} style={styles.removeButton}>
-                  <Text style={styles.removeButtonText}>×</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.itemCompany}>{it.companyName || "No Company"}</Text>
+              <Text style={styles.itemTitle}>
+                {it.itemName === "Other" ? it.customName : it.itemName}
+              </Text>
+              <Text style={styles.itemCompany}>{it.companyName || ""}</Text>
             </View>
-            
             <View style={styles.itemDetails}>
               <View style={styles.itemDetailRow}>
                 <Text style={styles.itemDetailLabel}>Quantity</Text>
                 <Text style={styles.itemDetailValue}>{it.itemQty}</Text>
               </View>
+              {it.diameter && (
+                <View style={styles.itemDetailRow}>
+                  <Text style={styles.itemDetailLabel}>Diameter</Text>
+                  <Text style={styles.itemDetailValue}>{it.diameter}</Text>
+                </View>
+              )}
               <View style={styles.itemDetailRow}>
                 <Text style={styles.itemDetailLabel}>Unit Price</Text>
                 <Text style={styles.itemDetailValue}>₹{formatMoney(it.itemPrice)}</Text>
               </View>
-              <View style={[styles.itemDetailRow, styles.totalRow]}>
+              <View style={styles.itemDetailRow}>
                 <Text style={styles.itemTotalLabel}>Total</Text>
                 <Text style={styles.itemTotalValue}>₹{formatMoney(lineTotal(it))}</Text>
               </View>
             </View>
+            <TouchableOpacity onPress={() => removeItem(it.id)} style={styles.removeButton}>
+              <Text style={styles.removeButtonText}>× Remove</Text>
+            </TouchableOpacity>
           </View>
         ))
       )}
 
-      <TouchableOpacity 
-        style={styles.nextButton} 
-        onPress={handleNext}
-      >
+      <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
         <Text style={styles.nextButtonText}>Continue</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  stepContent: {
-    flex: 1,
-  },
-  errorBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF2F2",
-    borderLeftWidth: 4,
-    borderLeftColor: "#EF4444",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  errorIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#991B1B",
-  },
-  addItemCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  badge: {
-    backgroundColor: "#DBEAFE",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#1E40AF",
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 15,
-    color: "#111827",
-    backgroundColor: "#FFFFFF",
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    overflow: "hidden",
-  },
-  picker: {
-    height: 50,
-  },
-  addButton: {
-    backgroundColor: "#3B82F6",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  addButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  itemsListHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  itemsListTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  itemCount: {
-    backgroundColor: "#3B82F6",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  itemCountText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  emptyIcon: {
-    fontSize: 36,
-    marginBottom: 12,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    marginTop: 4,
-  },
-  itemCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  itemHeader: {
-    marginBottom: 12,
-  },
-  itemTitleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  removeButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: "#F87171",
-  },
-  removeButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  itemCompany: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 2,
-  },
-  itemDetails: {
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    paddingTop: 12,
-  },
-  itemDetailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  itemDetailLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  itemDetailValue: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  totalRow: {
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    paddingTop: 4,
-  },
-  itemTotalLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  itemTotalValue: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  nextButton: {
-    backgroundColor: "#3B82F6",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  nextButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
+  stepContent: { flex: 1, padding: 20, backgroundColor: "#f9fafc" },
+  errorBanner: { flexDirection: "row", backgroundColor: "#fdecea", padding: 12, borderRadius: 12, marginBottom: 12 },
+  errorIcon: { marginRight: 8 },
+  errorText: { color: "#b91c1c", fontWeight: "600" },
+  addItemCard: { backgroundColor: "#fff", padding: 16, borderRadius: 16, marginBottom: 20, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  cardTitle: { fontSize: 20, fontWeight: "700", marginBottom: 12 },
+  inputGroup: { marginBottom: 12 },
+  inputLabel: { fontSize: 15, fontWeight: "600", marginBottom: 4, color: "#333" },
+  textInput: { borderWidth: 1, borderColor: "#ddd", borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: "#fdfdfd", color: "#111" },
+  pickerContainer: { borderWidth: 1, borderColor: "#ddd", borderRadius: 10, backgroundColor: "#fdfdfd" },
+  picker: { height: 50, width: "100%" },
+  addButton: { backgroundColor: "#007bff", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 8 },
+  addButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  itemsListTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
+  emptyState: { alignItems: "center", marginTop: 20 },
+  emptyIcon: { fontSize: 40, marginBottom: 8 },
+  emptyTitle: { fontSize: 16, color: "#6b7280" },
+  itemCard: { backgroundColor: "#fff", padding: 16, borderRadius: 16, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  itemHeader: { marginBottom: 8 },
+  itemTitle: { fontSize: 16, fontWeight: "700" },
+  itemCompany: { fontSize: 14, color: "#6b7280" },
+  itemDetails: { borderTopWidth: 1, borderTopColor: "#eee", paddingTop: 8 },
+  itemDetailRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
+  itemDetailLabel: { fontWeight: "600", color: "#333" },
+  itemDetailValue: { fontWeight: "600", color: "#007bff" },
+  itemTotalLabel: { fontWeight: "700", color: "#111" },
+  itemTotalValue: { fontWeight: "700", color: "#007bff" },
+  removeButton: { marginTop: 8, alignSelf: "flex-end" },
+  removeButtonText: { color: "#ff4d4f", fontWeight: "600" },
+  nextButton: { backgroundColor: "#10b981", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 16 },
+  nextButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });

@@ -76,7 +76,7 @@ export default function HomeScreen() {
       const lastB = Math.max(...b.orders.map((o) => o.createdAtMs || 0));
       return lastB - lastA;
     })
-    .slice(0, 4);
+    .slice(0, 2);
 
   // Dashboard cards
   const dashboardData = [
@@ -158,7 +158,6 @@ export default function HomeScreen() {
 
         {/* Dashboard Cards */}
         <View style={styles.dashboardSection}>
-          <Text style={styles.dashboardTitle}>Overview</Text>
           <View style={styles.dashboardContainer}>
             {dashboardData.map((card, idx) => (
               <View key={idx} style={[styles.card, { backgroundColor: card.bgColor }]}>
@@ -171,10 +170,6 @@ export default function HomeScreen() {
             ))}
           </View>
         </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
-
-        {/* Recent Customers Section */}
-        <View style={styles.customersSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Customers</Text>
             <TouchableOpacity onPress={() => navigation.navigate("AllCustomers")}>
@@ -184,6 +179,11 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
           </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+
+        {/* Recent Customers Section */}
+        <View style={styles.customersSection}>
+        
             
 
           {recent.length > 0 ? (
@@ -277,6 +277,7 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: "#F9FAFB",
+    margin:0,
   },
   
   loadingContainer: {
@@ -297,10 +298,10 @@ const styles = StyleSheet.create({
     flexDirection: "row", 
     justifyContent: "space-between", 
     alignItems: "center", 
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
     paddingTop: 16,
-    paddingBottom: 24,
-    backgroundColor: "#fff",
+    paddingBottom: 14,
+    backgroundColor: "#F9FAFB",
   },
   headerLeft: {
     flexDirection: "row",
@@ -335,6 +336,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 12,
+    
   },
   dashboardTitle: {
     fontSize: 18,
@@ -387,7 +389,8 @@ const styles = StyleSheet.create({
     flexDirection: "row", 
     justifyContent: "space-between", 
     alignItems: "center", 
-    marginBottom: 16,
+    margin: 16,
+    marginTop:0,
   },
   sectionTitle: { 
     fontSize: 18, 

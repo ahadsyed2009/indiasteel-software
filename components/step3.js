@@ -1,10 +1,8 @@
-// components/Step3.js
 import React, { useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   TextInput,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -41,19 +39,20 @@ export default function Step3({
   const finalTotal = Math.max(totalBeforeDiscount - discountValue, 0);
 
   return (
-    <View style={styles.stepContent}>
+    <View style={{ flex: 1, padding: 12 }}>
       {/* Order Items */}
-      <View style={styles.reviewCard}>
-        <Text style={styles.reviewSectionTitle}>Order Items</Text>
+      <View>
+        <Text>Order Items</Text>
         {items.map((it) => (
-          <View key={it.id} style={styles.reviewItem}>
-            <View style={styles.reviewItemHeader}>
-              <Text style={styles.reviewItemName}>
+          <View key={it.id}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text>
                 {it.itemName === "Other" ? it.customName : it.itemName}
+                {it.diameter ? ` (${it.diameter})` : ""}
               </Text>
-              <Text style={styles.reviewItemTotal}>₹{formatMoney(lineTotal(it))}</Text>
+              <Text>₹{formatMoney(lineTotal(it))}</Text>
             </View>
-            <Text style={styles.reviewItemDetails}>
+            <Text>
               {it.companyName} • Qty: {it.itemQty} • ₹{formatMoney(it.itemPrice)}/unit
             </Text>
           </View>
@@ -61,99 +60,75 @@ export default function Step3({
       </View>
 
       {/* Customer Information */}
-      <View style={styles.reviewCard}>
-        <Text style={styles.reviewSectionTitle}>Customer Information</Text>
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Name</Text>
-          <Text style={styles.reviewValue}>{customerName}</Text>
+      <View>
+        <Text>Customer Information</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text>Name</Text>
+          <Text>{customerName}</Text>
         </View>
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Phone</Text>
-          <Text style={styles.reviewValue}>{customerPhone}</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text>Phone</Text>
+          <Text>{customerPhone}</Text>
         </View>
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Place</Text>
-          <Text style={styles.reviewValue}>{place}</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text>Place</Text>
+          <Text>{place}</Text>
         </View>
         {driverName ? (
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>Driver</Text>
-            <Text style={styles.reviewValue}>{driverName}</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Text>Driver</Text>
+            <Text>{driverName}</Text>
           </View>
         ) : null}
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Payment</Text>
-          <View style={styles.paymentBadge}>
-            <Text style={styles.paymentBadgeText}>{paymentMethod}</Text>
-          </View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text>Payment</Text>
+          <Text>{paymentMethod}</Text>
         </View>
       </View>
 
-      {/* Order Summary with Discount */}
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Order Summary</Text>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Subtotal</Text>
-          <Text style={styles.summaryValue}>₹{subtotal.toFixed(2)}</Text>
+      {/* Order Summary */}
+      <View>
+        <Text>Order Summary</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text>Subtotal</Text>
+          <Text>₹{subtotal.toFixed(2)}</Text>
         </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Transport</Text>
-          <Text style={styles.summaryValue}>₹{transportCost.toFixed(2)}</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text>Transport</Text>
+          <Text>₹{transportCost.toFixed(2)}</Text>
         </View>
 
         {/* Discount Input */}
-        <View style={[styles.summaryRow, { alignItems: "center" }]}>
-          <Text style={styles.summaryLabel}>Discount</Text>
-          <View style={styles.discountContainer}>
-            <TextInput
-              value={discount}
-              onChangeText={setDiscount}
-              placeholder="0"
-              keyboardType="numeric"
-              style={styles.discountInput}
-            />
-            <TouchableOpacity
-              style={styles.discountTypeButton}
-              onPress={() =>
-                setDiscountType(discountType === "%" ? "₹" : "%")
-              }
-            >
-              <Text style={styles.discountTypeText}>
-                {discountType === "%" ? "%" : "₹"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text>Discount</Text>
+          <TextInput
+            value={discount}
+            onChangeText={setDiscount}
+            placeholder="0"
+            keyboardType="numeric"
+            style={{ marginLeft: 8, borderWidth: 1, padding: 4, width: 80 }}
+          />
+          <TouchableOpacity onPress={() => setDiscountType(discountType === "%" ? "₹" : "%")}>
+            <Text>{discountType}</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.summaryDivider} />
-
-        <View style={styles.summaryRow}>
-          <Text style={styles.totalLabel}>Total Amount</Text>
-          <Text style={styles.totalValue}>₹{finalTotal.toFixed(2)}</Text>
-        </View>
+        <Text>Total Amount: ₹{finalTotal.toFixed(2)}</Text>
       </View>
 
       {/* Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={onBack}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
+      <View style={{ flexDirection: "row", marginTop: 12 }}>
+        <TouchableOpacity onPress={onBack} style={{ flex: 1, marginRight: 8, backgroundColor: "#ccc", padding: 12, alignItems: "center" }}>
+          <Text>← Back</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.submitButton} 
-          onPress={onSubmit}
-        >
-          <Text style={styles.submitButtonText}>
-            {orderToEdit ? "Update Order" : "Place Order"}
-          </Text>
+        <TouchableOpacity onPress={onSubmit} style={{ flex: 1, marginLeft: 8, backgroundColor: "#007bff", padding: 12, alignItems: "center" }}>
+          <Text style={{ color: "#fff" }}>{orderToEdit ? "Update Order" : "Place Order"}</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   stepContent: {

@@ -1,5 +1,5 @@
 // settprice.js
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState } from "react";
 import {
   View,
   Text,
@@ -11,139 +11,120 @@ import {
   Modal,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { OrderContext } from "./context";
 import { db, auth } from "../firebase";
-import { ref, set, remove, onValue } from "firebase/database";
+import { ref, set, remove } from "firebase/database";
 
-export default function settprice() {
+export default function SettPrice() {
   const { companies, setCompanies } = useContext(OrderContext);
+  const userId = auth.currentUser?.uid;
 
   const [newCompanyName, setNewCompanyName] = useState("");
-  const [steelPrice, setSteelPrice] = useState("");
-  const [steelQty, setSteelQty] = useState("");
+  const [type, setType] = useState("steel");
+  const [steelDetails, setSteelDetails] = useState([{ diameter: "6mm", price: "", qty: "" }]);
   const [cementPrice, setCementPrice] = useState("");
   const [cementQty, setCementQty] = useState("");
-  const [type, setType] = useState("steel");
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editCompany, setEditCompany] = useState(null);
 
-  const userId = auth.currentUser?.uid;
+  // --- Steel handlers ---
+  const addSteelRow = () => setSteelDetails([...steelDetails, { diameter: "6mm", price: "", qty: "" }]);
+  const updateSteelField = (index, field, value) => {
+    const updated = [...steelDetails];
+    updated[index][field] = value;
+    setSteelDetails(updated);
+  };
+  const removeSteelRow = (index) => {
+    const updated = steelDetails.filter((_, i) => i !== index);
+    setSteelDetails(updated.length ? updated : [{ diameter: "6mm", price: "", qty: "" }]);
+  };
 
-
-
-  // Add company
+  // --- Add company ---
   const addCompany = () => {
-    if (!newCompanyName.trim())
-      return Alert.alert("Error", "Enter company name");
-
+    if (!newCompanyName.trim()) return Alert.alert("Error", "Enter company name");
     if (companies.find((c) => c.name === newCompanyName.trim()))
       return Alert.alert("Error", "Company already exists");
 
-    let newCompany = {
-      id: Date.now().toString(),
-      name: newCompanyName.trim(),
-      type,
-    };
+    let newCompany = { id: Date.now().toString(), name: newCompanyName.trim(), type };
 
     if (type === "steel" || type === "both") {
-      if (!steelPrice || !steelQty) {
-        return Alert.alert("Error", "Enter valid steel price and quantity");
-      }
-      newCompany.steelPrice = Number(steelPrice);
-      newCompany.steelQty = Number(steelQty);
+      if (!steelDetails.every((s) => s.price && s.qty))
+        return Alert.alert("Error", "Enter valid price and quantity for all steel diameters");
+      newCompany.steelDetails = steelDetails.map((s) => ({
+        diameter: s.diameter,
+        price: Number(s.price),
+        qty: Number(s.qty),
+      }));
     }
     if (type === "cement" || type === "both") {
-      if (!cementPrice || !cementQty) {
-        return Alert.alert("Error", "Enter valid cement price and quantity");
-      }
+      if (!cementPrice || !cementQty) return Alert.alert("Error", "Enter valid cement price and quantity");
       newCompany.cementPrice = Number(cementPrice);
       newCompany.cementQty = Number(cementQty);
     }
 
     setCompanies([newCompany, ...companies]);
+    resetForm();
 
+    const newCompanyRef = ref(db, `userOrders/${userId}/companies/${newCompany.id}`);
+    set(newCompanyRef, newCompany).catch((err) => console.error("Error saving company:", err));
+  };
+
+  const resetForm = () => {
     setNewCompanyName("");
-    setSteelPrice("");
-    setSteelQty("");
+    setType("steel");
+    setSteelDetails([{ diameter: "6mm", price: "", qty: "" }]);
     setCementPrice("");
     setCementQty("");
-    setType("steel");
-
-    const newCompanyRef = ref(
-      db,
-      `userOrders/${userId}/companies/${newCompany.id}`
-    );
-    set(newCompanyRef, newCompany).catch((err) =>
-      console.error("Error saving company:", err)
-    );
   };
 
-  // Delete
+  // --- Delete company ---
   const deleteCompany = (company) => {
-    Alert.alert(
-      "Delete Company",
-      `Are you sure you want to delete ${company.name}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            setCompanies(companies.filter((c) => c.id !== company.id));
-            const companyRef = ref(
-              db,
-              `userOrders/${userId}/companies/${company.id}`
-            );
-            remove(companyRef).catch((err) =>
-              console.error("Error deleting company:", err)
-            );
-          },
+    Alert.alert("Delete Company", `Are you sure you want to delete ${company.name}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          setCompanies(companies.filter((c) => c.id !== company.id));
+          const companyRef = ref(db, `userOrders/${userId}/companies/${company.id}`);
+          remove(companyRef).catch((err) => console.error("Error deleting company:", err));
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  // Start edit
+  // --- Edit company ---
   const startEditCompany = (company) => {
     setEditCompany({ ...company });
     setEditModalVisible(true);
   };
-
-  // Save edit
   const saveEditCompany = () => {
     if (!editCompany) return;
-
-    setCompanies(
-      companies.map((c) => (c.id === editCompany.id ? editCompany : c))
-    );
-
-    const companyRef = ref(
-      db,
-      `userOrders/${userId}/companies/${editCompany.id}`
-    );
-    set(companyRef, editCompany).catch((err) =>
-      console.error("Error updating company:", err)
-    );
-
+    setCompanies(companies.map((c) => (c.id === editCompany.id ? editCompany : c)));
+    const companyRef = ref(db, `userOrders/${userId}/companies/${editCompany.id}`);
+    set(companyRef, editCompany).catch((err) => console.error("Error updating company:", err));
     setEditModalVisible(false);
     setEditCompany(null);
   };
 
-  // Render card
+  // --- Render company card ---
   const renderCompany = ({ item }) => (
     <View style={styles.companyCardContainer}>
       <View style={styles.companyCard}>
         <Text style={styles.companyName}>{item.name}</Text>
-        {item.steelPrice !== undefined && (
-          <Text style={styles.priceText}>
-            Steel: ₹{item.steelPrice} / {item.steelQty}kg
-          </Text>
-        )}
+
+        {item.steelDetails &&
+          item.steelDetails.map((s, idx) => (
+            <Text style={styles.priceText} key={idx}>
+              Steel {s.diameter}: ₹{s.price} / {s.qty}kg
+            </Text>
+          ))}
+
         {item.cementPrice !== undefined && (
           <Text style={styles.priceText}>
             Cement: ₹{item.cementPrice} / {item.cementQty}bags
@@ -151,412 +132,237 @@ export default function settprice() {
         )}
       </View>
 
-      <TouchableOpacity
-        style={styles.editBtn}
-        onPress={() => startEditCompany(item)}
-      >
+      <TouchableOpacity style={styles.editBtn} onPress={() => startEditCompany(item)}>
         <Ionicons name="create-outline" size={24} color="#fff" />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.deleteBtn}
-        onPress={() => deleteCompany(item)}
-      >
+      <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteCompany(item)}>
         <Ionicons name="trash-outline" size={24} color="#fff" />
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <TouchableWithoutFeedback  onPress={Keyboard.dismiss} accessible={false}>
-<View style={styles.container}>
-      <Text style={styles.title}>Company Prices Settings</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Company Prices</Text>
 
-      {/* Add new company */}
-      <View style={styles.addContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Company Name"
-          value={newCompanyName}
-          onChangeText={setNewCompanyName}
-        />
-
-        <Picker
-          selectedValue={type}
-          style={styles.Picker}
-          onValueChange={(value) => setType(value)}
-        >
-          <Picker.Item label="Steel" value="steel" />
-          <Picker.Item label="Cement" value="cement" />
-          <Picker.Item label="Both" value="both" />
-        </Picker>
-
-        {/* Dynamic inputs */}
-        {type === "steel" && (
-          <>
+        {/* Add New Company */}
+        <ScrollView style={{ marginBottom: 20 }}>
+          <View style={styles.addContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Steel Price"
-              keyboardType="numeric"
-              value={steelPrice}
-              onChangeText={setSteelPrice}
+              placeholder="Company Name"
+              value={newCompanyName}
+              onChangeText={setNewCompanyName}
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Steel Qty (kg)"
-              keyboardType="numeric"
-              value={steelQty}
-              onChangeText={setSteelQty}
-            />
-          </>
-        )}
-        {type === "cement" && (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder="Cement Price"
-              keyboardType="numeric"
-              value={cementPrice}
-              onChangeText={setCementPrice}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Cement Qty (bags)"
-              keyboardType="numeric"
-              value={cementQty}
-              onChangeText={setCementQty}
-            />
-          </>
-        )}
-        {type === "both" && (
-          <>
-            <View style={styles.groupBox}>
-              <Text style={styles.groupTitle}>Steel</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Steel Price"
-                keyboardType="numeric"
-                value={steelPrice}
-                onChangeText={setSteelPrice}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Steel Qty (kg)"
-                keyboardType="numeric"
-                value={steelQty}
-                onChangeText={setSteelQty}
-              />
-            </View>
-            <View style={styles.groupBox}>
-              <Text style={styles.groupTitle}>Cement</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Cement Price"
-                keyboardType="numeric"
-                value={cementPrice}
-                onChangeText={setCementPrice}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Cement Qty (bags)"
-                keyboardType="numeric"
-                value={cementQty}
-                onChangeText={setCementQty}
-              />
-            </View>
-          </>
-        )}
 
-        <TouchableOpacity style={styles.addBtn} onPress={addCompany}>
-          <Text style={styles.addBtnText}>+ Add</Text>
-        </TouchableOpacity>
-      </View>
+            <Picker selectedValue={type} style={styles.Picker} onValueChange={(v) => setType(v)}>
+              <Picker.Item label="Steel" value="steel" />
+              <Picker.Item label="Cement" value="cement" />
+              <Picker.Item label="Both" value="both" />
+            </Picker>
 
-      {/* Company list */}
-      <FlatList
-        data={companies}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCompany}
-        contentContainerStyle={{ paddingBottom: 50 }}
-      />
+            {(type === "steel" || type === "both") && (
+              <View style={styles.groupBox}>
+                <Text style={styles.groupTitle}>Steel</Text>
+                {steelDetails.map((s, idx) => (
+                  <View key={idx} style={{ marginBottom: 10 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Picker
+                        selectedValue={s.diameter}
+                        style={{ flex: 1, height: 50 }}
+                        onValueChange={(value) => updateSteelField(idx, "diameter", value)}
+                      >
+                        <Picker.Item label="6mm" value="6mm" />
+                        <Picker.Item label="8mm" value="8mm" />
+                        <Picker.Item label="10mm" value="10mm" />
+                        <Picker.Item label="12mm" value="12mm" />
+                        <Picker.Item label="16mm" value="16mm" />
+                        <Picker.Item label="20mm" value="20mm" />
+                        <Picker.Item label="25mm" value="25mm" />
+                      </Picker>
 
-      {/* Edit Modal */}
-      <Modal
-        visible={editModalVisible}
-        animationType="slide"
-        transparent={true}
-      >
-            <TouchableWithoutFeedback  onPress={Keyboard.dismiss} accessible={false}>
-          <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <ScrollView>
-              <Text style={styles.modalTitle}>Edit Company</Text>
-              {editCompany && (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Company Name"
-                    value={editCompany.name}
-                    onChangeText={(text) =>
-                      setEditCompany({ ...editCompany, name: text })
-                    }
-                  />
-                  {editCompany.steelPrice !== undefined && (
-                    <>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Steel Price"
-                        keyboardType="numeric"
-                        value={String(editCompany.steelPrice)}
-                        onChangeText={(text) =>
-                          setEditCompany({
-                            ...editCompany,
-                            steelPrice: Number(text),
-                          })
-                        }
-                      />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Steel Qty (kg)"
-                        keyboardType="numeric"
-                        value={String(editCompany.steelQty)}
-                        onChangeText={(text) =>
-                          setEditCompany({
-                            ...editCompany,
-                            steelQty: Number(text),
-                          })
-                        }
-                      />
-                    </>
-                  )}
-                  {editCompany.cementPrice !== undefined && (
-                    <>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Cement Price"
-                        keyboardType="numeric"
-                        value={String(editCompany.cementPrice)}
-                        onChangeText={(text) =>
-                          setEditCompany({
-                            ...editCompany,
-                            cementPrice: Number(text),
-                          })
-                        }
-                      />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Cement Qty (bags)"
-                        keyboardType="numeric"
-                        value={String(editCompany.cementQty)}
-                        onChangeText={(text) =>
-                          setEditCompany({
-                            ...editCompany,
-                            cementQty: Number(text),
-                          })
-                        }
-                      />
-                    </>
-                  )}
-                </>
-              )}
-              <View style={{ flexDirection: "row", marginTop: 16 }}>
-                <TouchableOpacity
-                  style={[styles.addBtn, { flex: 1, marginRight: 8 }]}
-                  onPress={saveEditCompany}
-                >
-                  <Text style={styles.addBtnText}>Save</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.deleteBtn, { flex: 1 }]}
-                  onPress={() => {
-                    setEditModalVisible(false);
-                    setEditCompany(null);
-                  }}
-                >
-                  <Text style={styles.addBtnText}>Cancel</Text>
+                      <TouchableOpacity onPress={() => removeSteelRow(idx)} style={{ marginLeft: 8 }}>
+                        <Ionicons name="trash-outline" size={28} color="#ff4d4f" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Price"
+                      keyboardType="numeric"
+                      value={String(s.price)}
+                      onChangeText={(val) => updateSteelField(idx, "price", val)}
+                    />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Quantity (kg)"
+                      keyboardType="numeric"
+                      value={String(s.qty)}
+                      onChangeText={(val) => updateSteelField(idx, "qty", val)}
+                    />
+                  </View>
+                ))}
+                <TouchableOpacity style={styles.addBtn} onPress={addSteelRow}>
+                  <Text style={styles.addBtnText}>+ Add Diameter</Text>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
+            )}
+
+            {(type === "cement" || type === "both") && (
+              <View style={styles.groupBox}>
+                <Text style={styles.groupTitle}>Cement</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Cement Price"
+                  keyboardType="numeric"
+                  value={cementPrice}
+                  onChangeText={setCementPrice}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Cement Qty (bags)"
+                  keyboardType="numeric"
+                  value={cementQty}
+                  onChangeText={setCementQty}
+                />
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.addBtn} onPress={addCompany}>
+              <Text style={styles.addBtnText}>+ Add Company</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-    </View>
+        </ScrollView>
+
+        {/* Company List */}
+        <FlatList data={companies} keyExtractor={(item) => item.id} renderItem={renderCompany} />
+
+        {/* Edit Modal */}
+        <Modal visible={editModalVisible} animationType="slide" transparent={true}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <ScrollView>
+                  <Text style={styles.modalTitle}>Edit Company</Text>
+                  {editCompany && (
+                    <>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Company Name"
+                        value={editCompany.name}
+                        onChangeText={(text) => setEditCompany({ ...editCompany, name: text })}
+                      />
+
+                      {editCompany.steelDetails &&
+                        editCompany.steelDetails.map((s, idx) => (
+                          <View key={idx} style={{ marginBottom: 10 }}>
+                            <Picker
+                              selectedValue={s.diameter}
+                              style={styles.Picker}
+                              onValueChange={(val) => {
+                                const updated = [...editCompany.steelDetails];
+                                updated[idx].diameter = val;
+                                setEditCompany({ ...editCompany, steelDetails: updated });
+                              }}
+                            >
+                              <Picker.Item label="6mm" value="6mm" />
+                              <Picker.Item label="8mm" value="8mm" />
+                              <Picker.Item label="10mm" value="10mm" />
+                              <Picker.Item label="12mm" value="12mm" />
+                              <Picker.Item label="16mm" value="16mm" />
+                              <Picker.Item label="20mm" value="20mm" />
+                              <Picker.Item label="25mm" value="25mm" />
+                            </Picker>
+                            <TextInput
+                              style={styles.input}
+                              placeholder="Price"
+                              keyboardType="numeric"
+                              value={String(s.price)}
+                              onChangeText={(val) => {
+                                const updated = [...editCompany.steelDetails];
+                                updated[idx].price = val;
+                                setEditCompany({ ...editCompany, steelDetails: updated });
+                              }}
+                            />
+                            <TextInput
+                              style={styles.input}
+                              placeholder="Quantity (kg)"
+                              keyboardType="numeric"
+                              value={String(s.qty)}
+                              onChangeText={(val) => {
+                                const updated = [...editCompany.steelDetails];
+                                updated[idx].qty = val;
+                                setEditCompany({ ...editCompany, steelDetails: updated });
+                              }}
+                            />
+                          </View>
+                        ))}
+
+                      {editCompany.cementPrice !== undefined && (
+                        <>
+                          <TextInput
+                            style={styles.input}
+                            placeholder="Cement Price"
+                            keyboardType="numeric"
+                            value={String(editCompany.cementPrice)}
+                            onChangeText={(val) => setEditCompany({ ...editCompany, cementPrice: Number(val) })}
+                          />
+                          <TextInput
+                            style={styles.input}
+                            placeholder="Cement Qty (bags)"
+                            keyboardType="numeric"
+                            value={String(editCompany.cementQty)}
+                            onChangeText={(val) => setEditCompany({ ...editCompany, cementQty: Number(val) })}
+                          />
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  <View style={{ flexDirection: "row", marginTop: 16 }}>
+                    <TouchableOpacity style={[styles.addBtn, { flex: 1, marginRight: 8 }]} onPress={saveEditCompany}>
+                      <Text style={styles.addBtnText}>Save</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.deleteBtn, { flex: 1 }]}
+                      onPress={() => {
+                        setEditModalVisible(false);
+                        setEditCompany(null);
+                      }}
+                    >
+                      <Text style={styles.addBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+      </View>
     </TouchableWithoutFeedback>
   );
 }
 
-
+// --- Styles ---
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#f9fafc", // Softer neutral background
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-
-  // Add Section
-  addContainer: {
-    marginBottom: 20,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-
-  input: {
-    backgroundColor: "#fdfdfd",
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#dcdcdc",
-    marginBottom: 10,
-    height: 48,
-    fontSize: 16,
-    color: "#333",
-  },
-
-  addBtn: {
-    backgroundColor: "#007bff",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 10,
-    shadowColor: "#007bff",
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  addBtnText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
-    letterSpacing: 0.5,
-  },
-
-  // Company Cards
-  companyCardContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-
-  companyCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 18,
-    borderRadius: 18,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-    borderWidth: 0.5,
-    borderColor: "#eee",
-  },
-
-  companyName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#222",
-    marginBottom: 6,
-  },
-
-  priceText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#007bff",
-  },
-
-  editBtn: {
-    backgroundColor: "#f0ad4e",
-    padding: 12,
-    borderRadius: 12,
-    marginLeft: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#f0ad4e",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-
-  deleteBtn: {
-    backgroundColor: "#ff4d4f",
-    padding: 12,
-    borderRadius: 12,
-    marginLeft: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#ff4d4f",
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-
-  // Groups
-  groupBox: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#f1f1f1",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-
-  groupTitle: {
-    fontWeight: "700",
-    marginBottom: 8,
-    fontSize: 17,
-    color: "#1a1a1a",
-  },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalContent: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 22,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 16,
-    textAlign: "center",
-    color: "#1a1a1a",
-  },
-
-  Picker: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    backgroundColor: "#fdfdfd",
-    marginVertical: 8,
-    height: 50,
-    justifyContent: "center",
-  },
+  container: { flex: 1, padding: 20, backgroundColor: "#f0f2f5" },
+  title: { fontSize: 26, fontWeight: "700", color: "#1a1a1a", marginBottom: 20, textAlign: "center" },
+  addContainer: { marginBottom: 20, backgroundColor: "#fff", borderRadius: 16, padding: 16, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  input: { backgroundColor: "#fdfdfd", padding: 14, borderRadius: 12, borderWidth: 1, borderColor: "#dcdcdc", marginBottom: 10, fontSize: 16 },
+  addBtn: { backgroundColor: "#007bff", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 10 },
+  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 16, letterSpacing: 0.5 },
+  companyCardContainer: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
+  companyCard: { flex: 1, backgroundColor: "#fff", padding: 18, borderRadius: 18, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, elevation: 3, borderWidth: 0.5, borderColor: "#eee" },
+  companyName: { fontSize: 18, fontWeight: "700", color: "#222", marginBottom: 6 },
+  priceText: { fontSize: 15, fontWeight: "600", color: "#007bff" },
+  editBtn: { backgroundColor: "#f0ad4e", padding: 12, borderRadius: 12, marginLeft: 8, justifyContent: "center", alignItems: "center" },
+  deleteBtn: { backgroundColor: "#ff4d4f", padding: 12, borderRadius: 12, marginLeft: 8, justifyContent: "center", alignItems: "center" },
+  groupBox: { backgroundColor: "#fff", borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#f1f1f1" },
+  groupTitle: { fontWeight: "700", marginBottom: 8, fontSize: 17, color: "#1a1a1a" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 24 },
+  modalContent: { width: "100%", backgroundColor: "#fff", borderRadius: 20, padding: 22 },
+  modalTitle: { fontSize: 22, fontWeight: "700", marginBottom: 16, textAlign: "center", color: "#1a1a1a" },
+  Picker: { borderWidth: 1, borderColor: "#ddd", borderRadius: 10, backgroundColor: "#fdfdfd", marginVertical: 8, height: 50, justifyContent: "center" },
 });

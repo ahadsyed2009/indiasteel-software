@@ -17,7 +17,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { OrderContext } from "./context";
-
+import { auth } from "../firebase";
+import { db } from "../firebase";
+import { ref, onValue } from "firebase/database";
 const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
 const itemTotal = (it) => n(it.itemQty) * n(it.itemPrice);
 const orderTotal = (o) =>
@@ -27,8 +29,30 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const { orders, Username, isLoading } = useContext(OrderContext);
   const [search, setSearch] = useState("");
-
-  // Group orders by customer phone
+  const userId = auth.currentUser?.uid;
+  useEffect(() => {
+    if (!auth.currentUser) return; // wait until logged in
+  
+    const userId = auth.currentUser.uid;
+    const ordersRef = ref(db, `userOrders/${userId}`);
+  
+    const unsubscribe = onValue(ordersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const ordersList = Object.entries(data).map(([id, value]) => ({
+          id,
+          ...(typeof value === "object" ? value : { value }),
+        }));
+        setOrders(ordersList);
+        console.log("Orders loaded:", ordersList);
+        setIsLoading(false);
+      } else {
+        console.log("No orders found for user:", userId);
+      }
+    });
+  
+    return () => unsubscribe();
+  }, []);
   const groupedCustomers = useMemo(() => {
     const map = new Map();
     (orders || []).forEach((o) => {

@@ -23,29 +23,7 @@ export const OrderProvider = ({ children }) => {
   // Prevent multiple listeners on hot reload
   const userId = auth.currentUser?.uid;
 
-  useEffect(() => {
-  if (!auth.currentUser) return; // wait until logged in
-
-  const userId = auth.currentUser.uid;
-  const ordersRef = ref(db, `userOrders/${userId}`);
-
-  const unsubscribe = onValue(ordersRef, (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      const ordersList = Object.entries(data).map(([id, value]) => ({
-        id,
-        ...(typeof value === "object" ? value : { value }),
-      }));
-      setOrders(ordersList);
-      console.log("Orders loaded:", ordersList);
-      setIsLoading(false);
-    } else {
-      console.log("No orders found for user:", userId);
-    }
-  });
-
-  return () => unsubscribe();
-}, []);
+  
  useEffect(() => {
   if (!userId) return;
 

@@ -12,14 +12,13 @@ import {
 import { OrderContext } from "./context";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
 import { ref, remove, set } from "firebase/database";
 import { db, auth } from "../firebase";
 
 // ---------------------- Helpers ----------------------
 const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
 
-// Compute order totals including discount
 function computeOrderTotals(order) {
   const subTotal = (order.items || []).reduce((sum, it) => {
     const unitPrice = it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
@@ -27,9 +26,12 @@ function computeOrderTotals(order) {
   }, 0);
 
   const transport = n(order.transport);
+
   const discountValue = (() => {
     if (!order.discount) return 0;
-    return order.discountType === "%" ? ((subTotal + transport) * n(order.discount)) / 100 : n(order.discount);
+    return order.discountType === "%"
+      ? ((subTotal + transport) * n(order.discount)) / 100
+      : n(order.discount);
   })();
 
   const grandTotal = Math.max(subTotal + transport - discountValue, 0);
@@ -97,43 +99,61 @@ export default function CustomerDetails({ route, navigation }) {
     const orderRef = ref(db, `userOrders/${userId}/${id}`);
     const orderToUpdate = orders.find((o) => o.id === id);
     if (!orderToUpdate) return;
-
     set(orderRef, { ...orderToUpdate, status })
       .then(() => {
-        setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+        setOrders((prev) =>
+          prev.map((o) => (o.id === id ? { ...o, status } : o))
+        );
       })
       .catch((error) => console.error("Error updating status:", error));
   };
 
-  // ---- Share PDF: per order ----
+  // ---- Share PDF ----
   const shareOrderPDF = async (order) => {
     const { subTotal, transport, discountValue, grandTotal } = computeOrderTotals(order);
+
     const html = `
-      <h2>Order Receipt</h2>
-      <p><strong>Customer:</strong> ${order.customerName} (${order.customerPhone})</p>
-      <p><strong>Date:</strong> ${new Date(order.createdAtMs || Date.now()).toLocaleString()}</p>
-      <p><strong>Status:</strong> ${order.status || "Pending"}</p>
-      <hr/>
-      <h3>Items</h3>
-      <table border="1" cellspacing="0" cellpadding="6" width="100%">
-        <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
-        ${(order.items || []).map((it) => {
-          const unitPrice = it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
-          return `<tr>
-            <td>${it.itemName === "Other" ? it.customName : it.itemName} ${it.brand ? `(${it.brand})` : ""}</td>
-            <td>${it.itemQty}</td>
-            <td>₹${unitPrice}</td>
-            <td>₹${(n(it.itemQty) * unitPrice).toFixed(2)}</td>
-          </tr>`;
-        }).join("")}
-      </table>
-      <hr/>
-      <p>Subtotal: ₹${subTotal.toFixed(2)}</p>
-      <p>Transport: ₹${transport.toFixed(2)}</p>
-      <p>Discount: ₹${discountValue.toFixed(2)} (${order.discount || 0}${order.discountType || ""})</p>
-      <h3>Final: ₹${grandTotal.toFixed(2)}</h3>
-      <p><strong>Payment:</strong> ${order.paymentMethod || "-"}</p>
+      <html>
+        <body style="font-family:sans-serif; padding:20px;">
+          <h2 style="color:#007bff;">Order Receipt</h2>
+          <p><strong>Customer:</strong> ${order.customerName} (${order.customerPhone})</p>
+          <p><strong>Date:</strong> ${new Date(order.createdAtMs || Date.now()).toLocaleString()}</p>
+          <p><strong>Status:</strong> ${order.status || "Pending"}</p>
+          <hr/>
+          <h3>Items</h3>
+          <table border="1" cellspacing="0" cellpadding="6" width="100%">
+            <tr style="background:#f1f1f1;">
+              <th>Item</th><th>Qty</th><th>Price</th><th>Total</th>
+            </tr>
+            ${(order.items || [])
+              .map((it) => {
+                const unitPrice =
+                  it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
+                const itemLabel = it.itemName === "Other" ? it.customName : it.itemName;
+                const brandLabel = it.companyName ? ` (${it.companyName})` : "";
+                const diameterLabel = it.diameter ? ` - ${it.diameter}` : "";
+                return `
+                  <tr>
+                    <td>${itemLabel}${brandLabel}${diameterLabel}</td>
+                    <td>${it.itemQty}</td>
+                    <td>₹${unitPrice}</td>
+                    <td>₹${(n(it.itemQty) * unitPrice).toFixed(2)}</td>
+                  </tr>`;
+              })
+              .join("")}
+          </table>
+          <hr/>
+          <p><strong>Subtotal:</strong> ₹${subTotal.toFixed(2)}</p>
+          <p><strong>Transport:</strong> ₹${transport.toFixed(2)}</p>
+          <p><strong>Discount:</strong> ₹${discountValue.toFixed(2)} (${order.discount || 0}${
+      order.discountType || ""
+    })</p>
+          <h3 style="color:#007bff;">Final Total: ₹${grandTotal.toFixed(2)}</h3>
+          <p><strong>Payment:</strong> ${order.paymentMethod || "-"}</p>
+        </body>
+      </html>
     `;
+
     try {
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
@@ -141,7 +161,8 @@ export default function CustomerDetails({ route, navigation }) {
         dialogTitle: "Share Order",
         UTI: "com.adobe.pdf",
       });
-    } catch {
+    } catch (err) {
+      console.error(err);
       Alert.alert("Error", "Could not generate PDF");
     }
   };
@@ -154,6 +175,20 @@ export default function CustomerDetails({ route, navigation }) {
     );
   }
 
+  const allTotals = customerOrders.reduce(
+    (acc, order) => {
+      const { subTotal, transport, discountValue, grandTotal } = computeOrderTotals(order);
+      return {
+        subtotal: acc.subtotal + subTotal,
+        transport: acc.transport + transport,
+        discount: acc.discount + discountValue,
+        total: acc.total + grandTotal,
+        beforeDiscount: acc.beforeDiscount + (subTotal + transport),
+      };
+    },
+    { subtotal: 0, transport: 0, discount: 0, total: 0, beforeDiscount: 0 }
+  );
+
   const customerObj = {
     id: primary.customerPhone,
     customerName: primary.customerName,
@@ -164,12 +199,15 @@ export default function CustomerDetails({ route, navigation }) {
   // ---------------------- Render ----------------------
   return (
     <View style={styles.container}>
-      {/* Customer header card */}
+      {/* Header Card */}
       <View style={styles.headerCard}>
         <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{(primary.customerName || "?").charAt(0).toUpperCase()}</Text>
+            <Text style={styles.avatarText}>
+              {(primary.customerName || "?").charAt(0).toUpperCase()}
+            </Text>
           </View>
+
           {editing ? (
             <View style={{ flex: 1 }}>
               <TextInput
@@ -201,6 +239,23 @@ export default function CustomerDetails({ route, navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{primary.customerName}</Text>
               <Text style={styles.subtitle}>{primary.customerPhone}</Text>
+              
+              {/* Show totals with discount breakdown */}
+              <View style={{ marginTop: 6 }}>
+                {allTotals.discount > 0 && (
+                  <>
+                    <Text style={{ fontSize: 12, color: "#6b7280" }}>
+                      Before Discount: ₹{allTotals.beforeDiscount.toFixed(2)}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: "#ef4444", fontWeight: "600" }}>
+                      Discount: -₹{allTotals.discount.toFixed(2)}
+                    </Text>
+                  </>
+                )}
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#16a34a", marginTop: 2 }}>
+                  Total: ₹{allTotals.total.toFixed(2)}
+                </Text>
+              </View>
             </View>
           )}
         </View>
@@ -213,12 +268,14 @@ export default function CustomerDetails({ route, navigation }) {
           >
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: "#17a2b8" }]}
-            onPress={() => Alert.alert("Not implemented", "Share all orders PDF")}
+            onPress={() => Alert.alert("Feature Coming Soon", "Share all orders PDF")}
           >
             <Ionicons name="share-social-outline" size={20} color="#fff" />
           </TouchableOpacity>
+
           {!editing && (
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: "#007bff" }]}
@@ -241,7 +298,8 @@ export default function CustomerDetails({ route, navigation }) {
         )}
         keyExtractor={(it) => it.id.toString()}
         renderItem={({ item }) => {
-          const { subTotal, transport, discountValue, grandTotal } = computeOrderTotals(item);
+          const { subTotal, transport, discountValue, grandTotal } =
+            computeOrderTotals(item);
           const status = item.status || "Pending";
 
           return (
@@ -253,17 +311,29 @@ export default function CustomerDetails({ route, navigation }) {
                 <Text style={{ fontWeight: "700" }}>₹{grandTotal.toFixed(2)}</Text>
               </View>
 
-              {/* Status chips */}
+              {/* Status Chips */}
               <View style={styles.statusRow}>
                 {["Pending", "In Progress", "Complete"].map((opt) => {
                   const active = status === opt;
+                  const chipStyle =
+                    opt === "Pending"
+                      ? styles.chipPending
+                      : opt === "In Progress"
+                      ? styles.chipInProgress
+                      : styles.chipComplete;
+                  const textStyle =
+                    opt === "Pending"
+                      ? styles.chipTextPending
+                      : opt === "In Progress"
+                      ? styles.chipTextInProgress
+                      : styles.chipTextComplete;
                   return (
                     <TouchableOpacity
                       key={opt}
-                      style={[styles.statusChip, active && styles[`chip${opt.replace(" ", "")}`]]}
+                      style={[styles.statusChip, active && chipStyle]}
                       onPress={() => setStatus(item.id, opt)}
                     >
-                      <Text style={[styles.statusChipText, active && styles[`chipText${opt.replace(" ", "")}`]]}>
+                      <Text style={[styles.statusChipText, active && textStyle]}>
                         {opt}
                       </Text>
                     </TouchableOpacity>
@@ -274,15 +344,26 @@ export default function CustomerDetails({ route, navigation }) {
               {/* Items */}
               <View style={{ marginTop: 8 }}>
                 {(item.items || []).map((it, idx) => {
-                  const unitPrice = it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
+                  const unitPrice =
+                    it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
                   return (
                     <View key={idx} style={styles.itemRow}>
-                      <Text style={{ flex: 1 }}>
-                        {it.itemName === "Other" ? it.customName : it.itemName} {it.brand ? `(${it.brand})` : ""}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontWeight: "600" }}>
+                          {it.itemName === "Other" ? it.customName : it.itemName}
+                          {it.companyName ? ` (${it.companyName})` : ""}
+                        </Text>
+                        {it.diameter && (
+                          <Text style={{ fontSize: 12, color: "#6b7280" }}>
+                            Diameter: {it.diameter}
+                          </Text>
+                        )}
+                      </View>
                       <Text style={{ width: 70 }}>x{it.itemQty}</Text>
                       <Text style={{ width: 90 }}>₹{unitPrice}</Text>
-                      <Text style={{ width: 90 }}>₹{(n(it.itemQty) * unitPrice).toFixed(2)}</Text>
+                      <Text style={{ width: 90 }}>
+                        ₹{(n(it.itemQty) * unitPrice).toFixed(2)}
+                      </Text>
                     </View>
                   );
                 })}
@@ -292,10 +373,20 @@ export default function CustomerDetails({ route, navigation }) {
               <View style={{ marginTop: 8 }}>
                 <Text>Subtotal: ₹{subTotal.toFixed(2)}</Text>
                 <Text>Transport: ₹{transport.toFixed(2)}</Text>
-                <Text style={{ color: "#16a34a", fontWeight: "600" }}>
-                  Discount: ₹{discountValue.toFixed(2)} ({item.discount || 0}{item.discountType || ""})
+                {discountValue > 0 && (
+                  <>
+                    <Text style={{ color: "#6b7280" }}>
+                      Before Discount: ₹{(subTotal + transport).toFixed(2)}
+                    </Text>
+                    <Text style={{ color: "#ef4444", fontWeight: "600" }}>
+                      Discount: -₹{discountValue.toFixed(2)} ({item.discount || 0}
+                      {item.discountType || ""})
+                    </Text>
+                  </>
+                )}
+                <Text style={{ fontWeight: "700", fontSize: 15, marginTop: 4 }}>
+                  Final: ₹{grandTotal.toFixed(2)}
                 </Text>
-                <Text style={{ fontWeight: "700" }}>Final: ₹{grandTotal.toFixed(2)}</Text>
                 <Text>Payment: {item.paymentMethod || "-"}</Text>
               </View>
 
@@ -343,26 +434,73 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     marginBottom: 14,
   },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#007bff", alignItems: "center", justifyContent: "center", marginRight: 12 },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#007bff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
   avatarText: { color: "#fff", fontWeight: "bold" },
   title: { fontSize: 16, fontWeight: "700" },
   subtitle: { fontSize: 13, color: "#555", marginTop: 2 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
   saveBtn: { backgroundColor: "#28a745", padding: 8, borderRadius: 6 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  actionBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", marginLeft: 8 },
-  orderCard: { backgroundColor: "#f9f9f9", padding: 14, marginBottom: 12, borderRadius: 10, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  actionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  orderCard: {
+    backgroundColor: "#f9f9f9",
+    padding: 14,
+    marginBottom: 12,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   orderHeader: { flexDirection: "row", justifyContent: "space-between" },
   statusRow: { flexDirection: "row", marginTop: 8 },
-  statusChip: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12, backgroundColor: "#eee", marginRight: 8 },
+  statusChip: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "#eee",
+    marginRight: 8,
+  },
   statusChipText: { color: "#555", fontWeight: "600", fontSize: 12 },
   chipPending: { backgroundColor: "#fff3cd" },
   chipTextPending: { color: "#7a5d00" },
   chipInProgress: { backgroundColor: "#ffe4c7" },
   chipTextInProgress: { color: "#a04b00" },
   chipComplete: { backgroundColor: "#d4edda" },
-  chipTextComplete: { color: "#1a6632" },
-  itemRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
-  actions: { flexDirection: "row", justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" },
+  chipTextComplete: { color: "#1a6632ff" },
+  itemRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+    alignItems: "flex-start",
+  },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 12,
+    flexWrap: "wrap",
+  },
   iconBtn: { padding: 8, borderRadius: 6, marginLeft: 8 },
 });

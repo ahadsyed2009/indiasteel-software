@@ -13,7 +13,7 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { OrderContext } from "./context";
 import { db, auth } from "../firebase";
@@ -31,6 +31,7 @@ export default function SettPrice() {
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editCompany, setEditCompany] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // --- Steel handlers ---
   const addSteelRow = () => setSteelDetails([...steelDetails, { diameter: "6mm", price: "", qty: "" }]);
@@ -69,6 +70,7 @@ export default function SettPrice() {
 
     setCompanies([newCompany, ...companies]);
     resetForm();
+    setShowAddForm(false);
 
     const newCompanyRef = ref(db, `userOrders/${userId}/companies/${newCompany.id}`);
     set(newCompanyRef, newCompany).catch((err) => console.error("Error saving company:", err));
@@ -116,223 +118,409 @@ export default function SettPrice() {
   const renderCompany = ({ item }) => (
     <View style={styles.companyCardContainer}>
       <View style={styles.companyCard}>
-        <Text style={styles.companyName}>{item.name}</Text>
-
-        {item.steelDetails &&
-          item.steelDetails.map((s, idx) => (
-            <Text style={styles.priceText} key={idx}>
-              Steel {s.diameter}: ₹{s.price} / {s.qty}kg
+        <View style={styles.companyHeader}>
+          <View style={styles.companyIconBadge}>
+            <MaterialCommunityIcons name="office-building" size={20} color="#007bff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.companyName}>{item.name}</Text>
+            <Text style={styles.companyType}>
+              {item.type === "both" ? "Steel & Cement" : item.type.charAt(0).toUpperCase() + item.type.slice(1)}
             </Text>
-          ))}
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        {item.steelDetails && item.steelDetails.length > 0 && (
+          <View style={styles.priceSection}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="iron" size={18} color="#6b7280" />
+              <Text style={styles.sectionTitle}>Steel</Text>
+            </View>
+            {item.steelDetails.map((s, idx) => (
+              <View key={idx} style={styles.priceRow}>
+                <View style={styles.priceLabel}>
+                  <View style={styles.diameterBadge}>
+                    <Text style={styles.diameterText}>{s.diameter}</Text>
+                  </View>
+                </View>
+                <Text style={styles.priceValue}>
+                  ₹{s.price} / {s.qty}kg
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {item.cementPrice !== undefined && (
-          <Text style={styles.priceText}>
-            Cement: ₹{item.cementPrice} / {item.cementQty}bags
-          </Text>
+          <View style={styles.priceSection}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="sack" size={18} color="#6b7280" />
+              <Text style={styles.sectionTitle}>Cement</Text>
+            </View>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Price per unit</Text>
+              <Text style={styles.priceValue}>
+                ₹{item.cementPrice} / {item.cementQty} bags
+              </Text>
+            </View>
+          </View>
         )}
       </View>
 
-      <TouchableOpacity style={styles.editBtn} onPress={() => startEditCompany(item)}>
-        <Ionicons name="create-outline" size={24} color="#fff" />
-      </TouchableOpacity>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity style={styles.editBtn} onPress={() => startEditCompany(item)}>
+          <Ionicons name="create-outline" size={20} color="#fff" />
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteCompany(item)}>
-        <Ionicons name="trash-outline" size={24} color="#fff" />
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteCompany(item)}>
+          <Ionicons name="trash-outline" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.container}>
-        <Text style={styles.title}>Company Prices</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.title}>Company Prices</Text>
+            <Text style={styles.subtitle}>Manage your suppliers and pricing</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.addHeaderBtn}
+            onPress={() => setShowAddForm(!showAddForm)}
+          >
+            <Ionicons name={showAddForm ? "close" : "add-circle"} size={28} color="#007bff" />
+          </TouchableOpacity>
+        </View>
 
-        {/* Add New Company */}
-        <ScrollView style={{ marginBottom: 20 }}>
-          <View style={styles.addContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Company Name"
-              value={newCompanyName}
-              onChangeText={setNewCompanyName}
-            />
+        {/* Add New Company Form */}
+        {showAddForm && (
+          <ScrollView style={styles.addFormScroll} showsVerticalScrollIndicator={false}>
+            <View style={styles.addContainer}>
+              <View style={styles.formHeader}>
+                <MaterialCommunityIcons name="briefcase-plus" size={24} color="#007bff" />
+                <Text style={styles.formTitle}>Add New Company</Text>
+              </View>
 
-            <Picker selectedValue={type} style={styles.Picker} onValueChange={(v) => setType(v)}>
-              <Picker.Item label="Steel" value="steel" />
-              <Picker.Item label="Cement" value="cement" />
-              <Picker.Item label="Both" value="both" />
-            </Picker>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Company Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter company name"
+                  placeholderTextColor="#9ca3af"
+                  value={newCompanyName}
+                  onChangeText={setNewCompanyName}
+                />
+              </View>
 
-            {(type === "steel" || type === "both") && (
-              <View style={styles.groupBox}>
-                <Text style={styles.groupTitle}>Steel</Text>
-                {steelDetails.map((s, idx) => (
-                  <View key={idx} style={{ marginBottom: 10 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Picker
-                        selectedValue={s.diameter}
-                        style={{ flex: 1, height: 50 }}
-                        onValueChange={(value) => updateSteelField(idx, "diameter", value)}
-                      >
-                        <Picker.Item label="6mm" value="6mm" />
-                        <Picker.Item label="8mm" value="8mm" />
-                        <Picker.Item label="10mm" value="10mm" />
-                        <Picker.Item label="12mm" value="12mm" />
-                        <Picker.Item label="16mm" value="16mm" />
-                        <Picker.Item label="20mm" value="20mm" />
-                        <Picker.Item label="25mm" value="25mm" />
-                      </Picker>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Type</Text>
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={type}
+                    style={styles.picker}
+                    onValueChange={(v) => setType(v)}
+                  >
+                    <Picker.Item label="Steel Only" value="steel" />
+                    <Picker.Item label="Cement Only" value="cement" />
+                    <Picker.Item label="Both Steel & Cement" value="both" />
+                  </Picker>
+                </View>
+              </View>
 
-                      <TouchableOpacity onPress={() => removeSteelRow(idx)} style={{ marginLeft: 8 }}>
-                        <Ionicons name="trash-outline" size={28} color="#ff4d4f" />
-                      </TouchableOpacity>
-                    </View>
-
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Price"
-                      keyboardType="numeric"
-                      value={String(s.price)}
-                      onChangeText={(val) => updateSteelField(idx, "price", val)}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Quantity (kg)"
-                      keyboardType="numeric"
-                      value={String(s.qty)}
-                      onChangeText={(val) => updateSteelField(idx, "qty", val)}
-                    />
+              {(type === "steel" || type === "both") && (
+                <View style={styles.groupBox}>
+                  <View style={styles.groupBoxHeader}>
+                    <MaterialCommunityIcons name="iron" size={20} color="#007bff" />
+                    <Text style={styles.groupTitle}>Steel Products</Text>
                   </View>
-                ))}
-                <TouchableOpacity style={styles.addBtn} onPress={addSteelRow}>
-                  <Text style={styles.addBtnText}>+ Add Diameter</Text>
+                  
+                  {steelDetails.map((s, idx) => (
+                    <View key={idx} style={styles.steelRow}>
+                      <View style={styles.steelRowHeader}>
+                        <Text style={styles.steelRowTitle}>Diameter {idx + 1}</Text>
+                        {steelDetails.length > 1 && (
+                          <TouchableOpacity onPress={() => removeSteelRow(idx)}>
+                            <Ionicons name="close-circle" size={24} color="#ef4444" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <View style={styles.pickerWrapper}>
+                        <Picker
+                          selectedValue={s.diameter}
+                          style={styles.picker}
+                          onValueChange={(value) => updateSteelField(idx, "diameter", value)}
+                        >
+                          <Picker.Item label="6mm" value="6mm" />
+                          <Picker.Item label="8mm" value="8mm" />
+                          <Picker.Item label="10mm" value="10mm" />
+                          <Picker.Item label="12mm" value="12mm" />
+                          <Picker.Item label="16mm" value="16mm" />
+                          <Picker.Item label="20mm" value="20mm" />
+                          <Picker.Item label="25mm" value="25mm" />
+                        </Picker>
+                      </View>
+
+                      <View style={styles.rowInputs}>
+                        <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                          <Text style={styles.inputLabel}>Price (₹)</Text>
+                          <TextInput
+                            style={styles.input}
+                            placeholder="0.00"
+                            placeholderTextColor="#9ca3af"
+                            keyboardType="numeric"
+                            value={String(s.price)}
+                            onChangeText={(val) => updateSteelField(idx, "price", val)}
+                          />
+                        </View>
+                        <View style={[styles.inputGroup, { flex: 1 }]}>
+                          <Text style={styles.inputLabel}>Quantity (kg)</Text>
+                          <TextInput
+                            style={styles.input}
+                            placeholder="0"
+                            placeholderTextColor="#9ca3af"
+                            keyboardType="numeric"
+                            value={String(s.qty)}
+                            onChangeText={(val) => updateSteelField(idx, "qty", val)}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+
+                  <TouchableOpacity style={styles.addRowBtn} onPress={addSteelRow}>
+                    <Ionicons name="add-circle-outline" size={20} color="#007bff" />
+                    <Text style={styles.addRowBtnText}>Add Another Diameter</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {(type === "cement" || type === "both") && (
+                <View style={styles.groupBox}>
+                  <View style={styles.groupBoxHeader}>
+                    <MaterialCommunityIcons name="sack" size={20} color="#007bff" />
+                    <Text style={styles.groupTitle}>Cement Products</Text>
+                  </View>
+                  
+                  <View style={styles.rowInputs}>
+                    <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                      <Text style={styles.inputLabel}>Price (₹)</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="0.00"
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="numeric"
+                        value={cementPrice}
+                        onChangeText={setCementPrice}
+                      />
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={styles.inputLabel}>Quantity (bags)</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="0"
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="numeric"
+                        value={cementQty}
+                        onChangeText={setCementQty}
+                      />
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.formActions}>
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={() => {
+                    resetForm();
+                    setShowAddForm(false);
+                  }}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.addBtn} onPress={addCompany}>
+                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                  <Text style={styles.addBtnText}>Add Company</Text>
                 </TouchableOpacity>
               </View>
-            )}
-
-            {(type === "cement" || type === "both") && (
-              <View style={styles.groupBox}>
-                <Text style={styles.groupTitle}>Cement</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Cement Price"
-                  keyboardType="numeric"
-                  value={cementPrice}
-                  onChangeText={setCementPrice}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Cement Qty (bags)"
-                  keyboardType="numeric"
-                  value={cementQty}
-                  onChangeText={setCementQty}
-                />
-              </View>
-            )}
-
-            <TouchableOpacity style={styles.addBtn} onPress={addCompany}>
-              <Text style={styles.addBtnText}>+ Add Company</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+            </View>
+          </ScrollView>
+        )}
 
         {/* Company List */}
-        <FlatList data={companies} keyExtractor={(item) => item.id} renderItem={renderCompany} />
+        {companies.length === 0 ? (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="office-building-outline" size={64} color="#d1d5db" />
+            <Text style={styles.emptyTitle}>No Companies Added</Text>
+            <Text style={styles.emptySubtitle}>Add your first supplier to get started</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={companies}
+            keyExtractor={(item) => item.id}
+            renderItem={renderCompany}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
 
         {/* Edit Modal */}
         <Modal visible={editModalVisible} animationType="slide" transparent={true}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
-                <ScrollView>
-                  <Text style={styles.modalTitle}>Edit Company</Text>
-                  {editCompany && (
-                    <>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Company Name"
-                        value={editCompany.name}
-                        onChangeText={(text) => setEditCompany({ ...editCompany, name: text })}
-                      />
-
-                      {editCompany.steelDetails &&
-                        editCompany.steelDetails.map((s, idx) => (
-                          <View key={idx} style={{ marginBottom: 10 }}>
-                            <Picker
-                              selectedValue={s.diameter}
-                              style={styles.Picker}
-                              onValueChange={(val) => {
-                                const updated = [...editCompany.steelDetails];
-                                updated[idx].diameter = val;
-                                setEditCompany({ ...editCompany, steelDetails: updated });
-                              }}
-                            >
-                              <Picker.Item label="6mm" value="6mm" />
-                              <Picker.Item label="8mm" value="8mm" />
-                              <Picker.Item label="10mm" value="10mm" />
-                              <Picker.Item label="12mm" value="12mm" />
-                              <Picker.Item label="16mm" value="16mm" />
-                              <Picker.Item label="20mm" value="20mm" />
-                              <Picker.Item label="25mm" value="25mm" />
-                            </Picker>
-                            <TextInput
-                              style={styles.input}
-                              placeholder="Price"
-                              keyboardType="numeric"
-                              value={String(s.price)}
-                              onChangeText={(val) => {
-                                const updated = [...editCompany.steelDetails];
-                                updated[idx].price = val;
-                                setEditCompany({ ...editCompany, steelDetails: updated });
-                              }}
-                            />
-                            <TextInput
-                              style={styles.input}
-                              placeholder="Quantity (kg)"
-                              keyboardType="numeric"
-                              value={String(s.qty)}
-                              onChangeText={(val) => {
-                                const updated = [...editCompany.steelDetails];
-                                updated[idx].qty = val;
-                                setEditCompany({ ...editCompany, steelDetails: updated });
-                              }}
-                            />
-                          </View>
-                        ))}
-
-                      {editCompany.cementPrice !== undefined && (
-                        <>
-                          <TextInput
-                            style={styles.input}
-                            placeholder="Cement Price"
-                            keyboardType="numeric"
-                            value={String(editCompany.cementPrice)}
-                            onChangeText={(val) => setEditCompany({ ...editCompany, cementPrice: Number(val) })}
-                          />
-                          <TextInput
-                            style={styles.input}
-                            placeholder="Cement Qty (bags)"
-                            keyboardType="numeric"
-                            value={String(editCompany.cementQty)}
-                            onChangeText={(val) => setEditCompany({ ...editCompany, cementQty: Number(val) })}
-                          />
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  <View style={{ flexDirection: "row", marginTop: 16 }}>
-                    <TouchableOpacity style={[styles.addBtn, { flex: 1, marginRight: 8 }]} onPress={saveEditCompany}>
-                      <Text style={styles.addBtnText}>Save</Text>
-                    </TouchableOpacity>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Edit Company</Text>
                     <TouchableOpacity
-                      style={[styles.deleteBtn, { flex: 1 }]}
                       onPress={() => {
                         setEditModalVisible(false);
                         setEditCompany(null);
                       }}
                     >
-                      <Text style={styles.addBtnText}>Cancel</Text>
+                      <Ionicons name="close-circle" size={28} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {editCompany && (
+                    <>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Company Name</Text>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Company Name"
+                          placeholderTextColor="#9ca3af"
+                          value={editCompany.name}
+                          onChangeText={(text) => setEditCompany({ ...editCompany, name: text })}
+                        />
+                      </View>
+
+                      {editCompany.steelDetails && editCompany.steelDetails.length > 0 && (
+                        <View style={styles.groupBox}>
+                          <View style={styles.groupBoxHeader}>
+                            <MaterialCommunityIcons name="iron" size={20} color="#007bff" />
+                            <Text style={styles.groupTitle}>Steel Products</Text>
+                          </View>
+
+                          {editCompany.steelDetails.map((s, idx) => (
+                            <View key={idx} style={styles.steelRow}>
+                              <View style={styles.pickerWrapper}>
+                                <Picker
+                                  selectedValue={s.diameter}
+                                  style={styles.picker}
+                                  onValueChange={(val) => {
+                                    const updated = [...editCompany.steelDetails];
+                                    updated[idx].diameter = val;
+                                    setEditCompany({ ...editCompany, steelDetails: updated });
+                                  }}
+                                >
+                                  <Picker.Item label="6mm" value="6mm" />
+                                  <Picker.Item label="8mm" value="8mm" />
+                                  <Picker.Item label="10mm" value="10mm" />
+                                  <Picker.Item label="12mm" value="12mm" />
+                                  <Picker.Item label="16mm" value="16mm" />
+                                  <Picker.Item label="20mm" value="20mm" />
+                                  <Picker.Item label="25mm" value="25mm" />
+                                </Picker>
+                              </View>
+
+                              <View style={styles.rowInputs}>
+                                <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                                  <Text style={styles.inputLabel}>Price (₹)</Text>
+                                  <TextInput
+                                    style={styles.input}
+                                    placeholder="Price"
+                                    placeholderTextColor="#9ca3af"
+                                    keyboardType="numeric"
+                                    value={String(s.price)}
+                                    onChangeText={(val) => {
+                                      const updated = [...editCompany.steelDetails];
+                                      updated[idx].price = val;
+                                      setEditCompany({ ...editCompany, steelDetails: updated });
+                                    }}
+                                  />
+                                </View>
+                                <View style={[styles.inputGroup, { flex: 1 }]}>
+                                  <Text style={styles.inputLabel}>Quantity (kg)</Text>
+                                  <TextInput
+                                    style={styles.input}
+                                    placeholder="Quantity (kg)"
+                                    placeholderTextColor="#9ca3af"
+                                    keyboardType="numeric"
+                                    value={String(s.qty)}
+                                    onChangeText={(val) => {
+                                      const updated = [...editCompany.steelDetails];
+                                      updated[idx].qty = val;
+                                      setEditCompany({ ...editCompany, steelDetails: updated });
+                                    }}
+                                  />
+                                </View>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {editCompany.cementPrice !== undefined && (
+                        <View style={styles.groupBox}>
+                          <View style={styles.groupBoxHeader}>
+                            <MaterialCommunityIcons name="sack" size={20} color="#007bff" />
+                            <Text style={styles.groupTitle}>Cement Products</Text>
+                          </View>
+                          
+                          <View style={styles.rowInputs}>
+                            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                              <Text style={styles.inputLabel}>Price (₹)</Text>
+                              <TextInput
+                                style={styles.input}
+                                placeholder="Cement Price"
+                                placeholderTextColor="#9ca3af"
+                                keyboardType="numeric"
+                                value={String(editCompany.cementPrice)}
+                                onChangeText={(val) =>
+                                  setEditCompany({ ...editCompany, cementPrice: Number(val) })
+                                }
+                              />
+                            </View>
+                            <View style={[styles.inputGroup, { flex: 1 }]}>
+                              <Text style={styles.inputLabel}>Quantity (bags)</Text>
+                              <TextInput
+                                style={styles.input}
+                                placeholder="Cement Qty (bags)"
+                                placeholderTextColor="#9ca3af"
+                                keyboardType="numeric"
+                                value={String(editCompany.cementQty)}
+                                onChangeText={(val) =>
+                                  setEditCompany({ ...editCompany, cementQty: Number(val) })
+                                }
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      )}
+                    </>
+                  )}
+
+                  <View style={styles.formActions}>
+                    <TouchableOpacity
+                      style={styles.cancelBtn}
+                      onPress={() => {
+                        setEditModalVisible(false);
+                        setEditCompany(null);
+                      }}
+                    >
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.addBtn} onPress={saveEditCompany}>
+                      <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                      <Text style={styles.addBtnText}>Save Changes</Text>
                     </TouchableOpacity>
                   </View>
                 </ScrollView>
@@ -347,22 +535,427 @@ export default function SettPrice() {
 
 // --- Styles ---
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#f0f2f5" },
-  title: { fontSize: 26, fontWeight: "700", color: "#1a1a1a", marginBottom: 20, textAlign: "center" },
-  addContainer: { marginBottom: 20, backgroundColor: "#fff", borderRadius: 16, padding: 16, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  input: { backgroundColor: "#fdfdfd", padding: 14, borderRadius: 12, borderWidth: 1, borderColor: "#dcdcdc", marginBottom: 10, fontSize: 16 },
-  addBtn: { backgroundColor: "#007bff", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 10 },
-  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 16, letterSpacing: 0.5 },
-  companyCardContainer: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
-  companyCard: { flex: 1, backgroundColor: "#fff", padding: 18, borderRadius: 18, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, elevation: 3, borderWidth: 0.5, borderColor: "#eee" },
-  companyName: { fontSize: 18, fontWeight: "700", color: "#222", marginBottom: 6 },
-  priceText: { fontSize: 15, fontWeight: "600", color: "#007bff" },
-  editBtn: { backgroundColor: "#f0ad4e", padding: 12, borderRadius: 12, marginLeft: 8, justifyContent: "center", alignItems: "center" },
-  deleteBtn: { backgroundColor: "#ff4d4f", padding: 12, borderRadius: 12, marginLeft: 8, justifyContent: "center", alignItems: "center" },
-  groupBox: { backgroundColor: "#fff", borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#f1f1f1" },
-  groupTitle: { fontWeight: "700", marginBottom: 8, fontSize: 17, color: "#1a1a1a" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 24 },
-  modalContent: { width: "100%", backgroundColor: "#fff", borderRadius: 20, padding: 22 },
-  modalTitle: { fontSize: 22, fontWeight: "700", marginBottom: 16, textAlign: "center", color: "#1a1a1a" },
-  Picker: { borderWidth: 1, borderColor: "#ddd", borderRadius: 10, backgroundColor: "#fdfdfd", marginVertical: 8, height: 50, justifyContent: "center" },
+  container: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#1f2937",
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  addHeaderBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#eff6ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addFormScroll: {
+    maxHeight: 500,
+  },
+  addContainer: {
+    margin: 16,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  formHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  formTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginLeft: 12,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: "#f9fafb",
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    fontSize: 15,
+    color: "#1f2937",
+  },
+  pickerWrapper: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    overflow: "hidden",
+  },
+  picker: {
+    height: 50,
+  },
+  groupBox: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  groupBoxHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  groupTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginLeft: 8,
+  },
+  steelRow: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  steelRowHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  steelRowTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6b7280",
+  },
+  rowInputs: {
+    flexDirection: "row",
+  },
+  addRowBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    backgroundColor: "#eff6ff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    borderStyle: "dashed",
+  },
+  addRowBtnText: {
+    color: "#007bff",
+    fontWeight: "600",
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  formActions: {
+    flexDirection: "row",
+    marginTop: 8,
+    gap: 12,
+  },
+  addBtn: {
+    flex: 1,
+    backgroundColor: "#007bff",
+    paddingVertical: 16,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#007bff",
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  addBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  cancelBtnText: {
+    color: "#6b7280",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  listContent: {
+    padding: 16,
+  },
+  companyCardContainer: {
+    marginBottom: 16,
+  },
+  companyCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#f3f4f6",
+  },
+  companyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  companyIconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#eff6ff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  companyName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  companyType: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#f3f4f6",
+    marginBottom: 12,
+  },
+  priceSection: {
+    marginBottom: 12,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6b7280",
+    marginLeft: 6,
+  },
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  priceLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  diameterBadge: {
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  diameterText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#007bff",
+  },
+  priceValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+ actionButtons: { flexDirection: "row", justifyContent: "flex-end", marginTop: 8, gap: 12 },
+  editBtn: { backgroundColor: "#4f46e5", padding: 10, borderRadius: 12, marginRight: 8 },
+  deleteBtn: { backgroundColor: "#ef4444", padding: 10, borderRadius: 12 },
+  
+
+
+
+// Add these to your existing StyleSheet.create({})
+
+// --- Modal Overlap Fix Styles ---
+modalOverlay: {
+  // CRITICAL: This ensures the overlay takes the whole screen AND centers the content
+  flex: 1, 
+  justifyContent: 'center', // Centers the content vertically
+  alignItems: 'center', // Centers the content horizontally
+  backgroundColor: 'rgba(0, 0, 0, 0.6)', // Semi-transparent black to dim the background
+},
+modalContent: {
+  // CRITICAL: Constrains the size of the modal box
+  width: '90%', // Use a percentage of the screen width
+  maxHeight: '80%', // Limits the height so it doesn't take the full screen
+  backgroundColor: '#ffffff', // White background for the modal box
+  borderRadius: 16,
+  padding: 20,
+  // Optional: Add a subtle shadow for depth
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.1,
+  shadowRadius: 5,
+  elevation: 8,
+},
+
+// --- Input & Layout Improvements (Optional but Recommended) ---
+modalHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 15,
+  paddingBottom: 10,
+  borderBottomWidth: 1,
+  borderBottomColor: '#f0f0f0',
+},
+modalTitle: {
+  fontSize: 22,
+  fontWeight: '700',
+  color: '#1f2937', // Dark text color
+},
+inputGroup: {
+  marginBottom: 15, // Add space between input groups
+},
+inputLabel: {
+  fontSize: 14,
+  fontWeight: '500',
+  color: '#4b5563',
+  marginBottom: 4,
+},
+input: {
+  borderWidth: 1,
+  borderColor: '#d1d5db',
+  borderRadius: 8,
+  paddingVertical: 10,
+  paddingHorizontal: 12,
+  fontSize: 16,
+  color: '#1f2937',
+  backgroundColor: '#f9fafb', // Light background for the input field
+},
+rowInputs: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
+groupBox: {
+  padding: 15,
+  backgroundColor: '#f7f7f7', // Slightly off-white background for grouping
+  borderRadius: 12,
+  marginBottom: 20,
+  borderLeftWidth: 4,
+  borderLeftColor: '#007bff', // Accent color on the left
+},
+groupBoxHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 10,
+},
+groupTitle: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#007bff',
+  marginLeft: 8,
+},
+steelRow: {
+  marginBottom: 15,
+  borderBottomWidth: 1,
+  borderBottomColor: '#eee',
+  paddingBottom: 10,
+},
+pickerWrapper: {
+  borderWidth: 1,
+  borderColor: '#d1d5db',
+  borderRadius: 8,
+  marginBottom: 10,
+  overflow: 'hidden', // Ensures picker border is respected
+},
+picker: {
+  height: 40,
+  width: '100%',
+},
+formActions: {
+  flexDirection: 'row',
+  justifyContent: 'flex-end',
+  marginTop: 20,
+  borderTopWidth: 1,
+  borderTopColor: '#f0f0f0',
+  paddingTop: 15,
+},
+cancelBtn: {
+  paddingVertical: 12,
+  paddingHorizontal: 20,
+  borderRadius: 8,
+  marginRight: 10,
+  borderWidth: 1,
+  borderColor: '#d1ddff', // Light blue border
+},
+cancelBtnText: {
+  color: '#007bff',
+  fontWeight: '600',
+  fontSize: 16,
+},
+addBtn: { // Used for Save Changes
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#007bff',
+  paddingVertical: 12,
+  paddingHorizontal: 20,
+  borderRadius: 8,
+},
+addBtnText: {
+  color: '#fff',
+  fontWeight: '600',
+  fontSize: 16,
+  marginLeft: 5,
+},
+
+
+
+
 });

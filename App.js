@@ -8,16 +8,17 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
 // Your existing screens
+import WelcomeScreen from "./components/WelcomeScreen";
 import HomeScreen from "./components/HomeScreen";
 import NewOrder from "./components/NewOrder";
 import CustomerDetails from "./components/CustomerDetails";
 import AllCustomers from "./components/AllCustomers";
 import ProfileScreen from "./components/ProfileScreen";
 import SettingsScreen from "./components/SettingsScreen";
-import LoginScreen from "./components/Login";  
-import settprice from "./components/settprice";  
+import LoginScreen from "./components/Login";
+import settprice from "./components/settprice";
 
-// 👉 Add your Step screens
+// Step screens
 import Step1 from "./components/step1";
 import Step2 from "./components/step2";
 import Step3 from "./components/step3";
@@ -38,7 +39,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <View>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#007BFF" />
         <Text>Loading data...</Text>
       </View>
@@ -48,68 +49,67 @@ export default function App() {
   return (
     <OrderProvider>
       <NavigationContainer>
-        <Stack.Navigator>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
           {user ? (
             <>
               <Stack.Screen
+                name="WelcomeScreen"
+                component={WelcomeScreen}
+              />
+              <Stack.Screen
                 name="Home"
                 component={HomeScreen}
-                options={{ headerShown: false }}
               />
               <Stack.Screen
                 name="AllCustomers"
                 component={AllCustomers}
-                options={{ title: "All Customers" }}
+                options={{ headerShown: true, title: "All Customers" }}
               />
               <Stack.Screen
                 name="CustomerDetails"
                 component={CustomerDetails}
-                options={{ title: "Customer Details" }}
+                options={{ headerShown: true, title: "Customer Details" }}
               />
               <Stack.Screen
                 name="NewOrder"
                 component={NewOrder}
-                options={{ title: "New Order" }}
+                options={{ headerShown: true, title: "New Order" }}
               />
               <Stack.Screen
                 name="ProfileScreen"
                 component={ProfileScreen}
-                options={{ title: "ProfileScreen" }}
+                options={{ headerShown: true, title: "Profile" }}
               />
               <Stack.Screen
                 name="SettingsScreen"
                 component={SettingsScreen}
-                options={{ title: "SettingsScreen" }}
+                options={{ headerShown: true, title: "Settings" }}
               />
               <Stack.Screen
                 name="settprice"
                 component={settprice}
-                options={{ title: "settprice" }}
+                options={{ headerShown: true, title: "Set Price" }}
               />
-             
-
-              {/* ✅ Added Step screens here */}
               <Stack.Screen
                 name="Step1"
                 component={Step1}
-                options={{ title: "Step 1" }}
+                options={{ headerShown: true, title: "Step 1" }}
               />
               <Stack.Screen
                 name="Step2"
                 component={Step2}
-                options={{ title: "Step 2" }}
+                options={{ headerShown: true, title: "Step 2" }}
               />
               <Stack.Screen
                 name="Step3"
                 component={Step3}
-                options={{ title: "Step 3" }}
+                options={{ headerShown: true, title: "Step 3" }}
               />
             </>
           ) : (
             <Stack.Screen
               name="Login"
               component={LoginScreen}
-              options={{ headerShown: false }}
             />
           )}
         </Stack.Navigator>

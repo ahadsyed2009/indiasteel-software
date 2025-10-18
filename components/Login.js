@@ -7,32 +7,53 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
-import { loginUser, registerUser } from "../authService";
+import { loginUser, registerUser } from "../authService"; // Firebase functions
 import { OrderContext } from "./context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   const { Username, setUsername } = useContext(OrderContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin=()=>{
-    registerUser(email, password);
-    setUsername("");
-  }
+  const handleLogin = async () => {
+    try {
+      setLoading(true);
+      await loginUser(email, password);
+      setLoading(false);
+      navigation.replace("Home"); // ✅ navigate safely after login
+    } catch (error) {
+      setLoading(false);
+      Alert.alert("Login Failed", error.message);
+    }
+  };
+
+  const handleRegister = async () => {
+    try {
+      setLoading(true);
+      await registerUser(email, password);
+      setLoading(false);
+      navigation.replace("Home"); // ✅ after register, go to home
+    } catch (error) {
+      setLoading(false);
+      Alert.alert("Registration Failed", error.message);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* Title */}
       <Text style={styles.title}>Welcome Back 👋</Text>
       <Text style={styles.subtitle}>Login to continue</Text>
 
-      {/* Shop Name */}
       <TextInput
         placeholder="Shop Name"
         value={Username}
@@ -41,7 +62,6 @@ export default function LoginScreen() {
         placeholderTextColor="#aaa"
       />
 
-      {/* Email */}
       <TextInput
         placeholder="Email"
         value={email}
@@ -51,7 +71,6 @@ export default function LoginScreen() {
         placeholderTextColor="#aaa"
       />
 
-      {/* Password with Eye Icon */}
       <View style={styles.passwordContainer}>
         <TextInput
           placeholder="Password"
@@ -75,8 +94,9 @@ export default function LoginScreen() {
 
       {/* Login Button */}
       <TouchableOpacity
-        onPress={() => loginUser(email, password)}
+        onPress={handleLogin}
         style={styles.buttonWrapper}
+        disabled={loading}
       >
         <LinearGradient
           colors={["#6a11cb", "#2575fc"]}
@@ -84,14 +104,19 @@ export default function LoginScreen() {
           end={{ x: 1, y: 0 }}
           style={styles.button}
         >
-          <Text style={styles.buttonText}>Login</Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Login</Text>
+          )}
         </LinearGradient>
       </TouchableOpacity>
 
       {/* Register Button */}
       <TouchableOpacity
-        onPress={handleLogin}
+        onPress={handleRegister}
         style={styles.buttonWrapper}
+        disabled={loading}
       >
         <LinearGradient
           colors={["#2575fc", "#6a11cb"]}
@@ -99,7 +124,11 @@ export default function LoginScreen() {
           end={{ x: 1, y: 0 }}
           style={styles.buttonOutline}
         >
-          <Text style={styles.buttonText}>Register</Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Register</Text>
+          )}
         </LinearGradient>
       </TouchableOpacity>
     </KeyboardAvoidingView>

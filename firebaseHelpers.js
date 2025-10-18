@@ -9,7 +9,7 @@ export const saveUserOrder = (order) => {
   return set(ref(db, path), order);
 };
 
-// Fetch all orders for the current user
+// Fetch all orders for the current userr
 export const fetchUserOrders = (setOrders) => {
   const userId = auth.currentUser.uid;
   const ordersRef = ref(db, `userOrders/${userId}`);
@@ -18,7 +18,6 @@ export const fetchUserOrders = (setOrders) => {
     setOrders(data ? Object.values(data) : []);
   });
 };
-
 
 
 

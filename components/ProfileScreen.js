@@ -6,13 +6,22 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Modal,
+  Alert,
+  // Modal is not strictly needed for this design, but kept if you need it later
 } from "react-native";
 import { OrderContext } from "./context";
-import { Ionicons, Entypo } from "@expo/vector-icons";
+import { Ionicons, Entypo, MaterialIcons } from "@expo/vector-icons"; // Added MaterialIcons
 import { useNavigation } from "@react-navigation/native";
 import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
+
+// --- Design Tokens (Consistent Branding) ---
+const PRIMARY_COLOR = "#667eea"; // A vibrant gold for accent
+const SECONDARY_COLOR = "#667eea"; // A clean blue for buttons
+const BACKGROUND_DARK = "#121212"; // Dark background
+const CARD_DARK = "#1E1E1E"; // Dark card background
+const TEXT_LIGHT = "#F5F5F5"; // Light text color
+const TEXT_MUTED = "#B0B0B0"; // Muted text color
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
@@ -45,30 +54,15 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Profile Card */}
-      <View style={styles.profileCard}>
-        <Ionicons name="person-circle" size={100} color="#007BFF" />
-        <Text style={styles.username}>{Username}</Text>
-
-        {isEditing ? (
-          <TextInput
-            style={styles.bioInput}
-            value={bio}
-            onChangeText={setBio}
-            multiline
-          />
-        ) : (
-          <Text style={styles.bio}>{bio}</Text>
-        )}
-
-        {/* 3-Dot Dropdown */}
+      {/* Header and 3-Dot Dropdown */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Profile</Text>
         <TouchableOpacity
           style={styles.settingsBtnTop}
           onPress={() => setDropdownVisible(!dropdownVisible)}
         >
-          <Entypo name="dots-three-vertical" size={20} color="#333" />
+          <Entypo name="dots-three-vertical" size={20} color={TEXT_LIGHT} />
         </TouchableOpacity>
-
         {dropdownVisible && (
           <View style={styles.dropdown}>
             <TouchableOpacity
@@ -78,6 +72,7 @@ export default function ProfileScreen() {
                 setDropdownVisible(false);
               }}
             >
+              <MaterialIcons name="edit" size={18} color={TEXT_DARK} />
               <Text style={styles.dropdownText}>Edit Profile</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -87,154 +82,289 @@ export default function ProfileScreen() {
                 setDropdownVisible(false);
               }}
             >
+              <Ionicons name="settings" size={18} color={TEXT_DARK} />
               <Text style={styles.dropdownText}>Settings</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+  style={styles.dropdownItem}
+  onPress={() =>
+    Alert.alert(
+      "Confirm Logout",
+      "Do you really want to log out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: handleLogout, // actual logout happens here
+        },
+      ],
+      { cancelable: true }
+    )
+  }
+>
+  <MaterialIcons name="logout" size={18} color="#dc3545" />
+  <Text style={[styles.dropdownText, { color: "#dc3545" }]}>
+    Logout
+  </Text>
+</TouchableOpacity>
+
           </View>
         )}
       </View>
 
-      {/* Info Card */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Email</Text>
-        <Text style={styles.value}>{email}</Text>
+      {/* Profile Card (Elevated Design) */}
+      <View style={styles.profileCard}>
+        <Ionicons name="person-circle" size={120} color={PRIMARY_COLOR} />
+        <Text style={styles.username}>{Username}</Text>
+        <View style={styles.joinedBadge}>
+          <Ionicons name="calendar-outline" size={14} color={TEXT_MUTED} />
+          <Text style={styles.joinedText}>Joined: {joined}</Text>
+        </View>
 
-        <Text style={styles.label}>Phone</Text>
         {isEditing ? (
           <TextInput
-            style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
+            style={styles.bioInput}
+            value={bio}
+            onChangeText={setBio}
+            multiline
+            placeholder="Enter your professional bio..."
+            placeholderTextColor={TEXT_MUTED}
           />
         ) : (
-          <Text style={styles.value}>{phone}</Text>
-        )}
-
-        <Text style={styles.label}>Joined</Text>
-        {isEditing ? (
-          <TextInput
-            style={styles.input}
-            value={joined}
-            onChangeText={setJoined}
-          />
-        ) : (
-          <Text style={styles.value}>{joined}</Text>
-        )}
-
-        {isEditing && (
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveText}>Save</Text>
-          </TouchableOpacity>
+          <Text style={styles.bio}>{bio}</Text>
         )}
       </View>
+      {/* --- Horizontal Line --- */}
+
+      {/* Info Card (Sleeker Layout) */}
+      <View style={styles.card}>
+        {/* Email */}
+        <View style={styles.infoRow}>
+          <View style={styles.iconBackground}>
+            <MaterialIcons name="email" size={24} color={PRIMARY_COLOR} />
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.label}>Email Address</Text>
+            <Text style={styles.value}>{email}</Text>
+          </View>
+        </View>
+
+        {/* Phone */}
+        <View style={styles.infoRow}>
+          <View style={styles.iconBackground}>
+            <MaterialIcons name="phone" size={24} color={PRIMARY_COLOR} />
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.label}>Phone Number</Text>
+            {isEditing ? (
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                placeholder="Enter phone number"
+                placeholderTextColor={TEXT_MUTED}
+              />
+            ) : (
+              <Text style={styles.value}>{phone}</Text>
+            )}
+          </View>
+        </View>
+      </View>
+
+      {/* Save Button (Conditional Rendering) */}
+      {isEditing && (
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+          <MaterialIcons name="save" size={20} color={CARD_DARK} />
+          <Text style={styles.saveText}>Save Changes</Text>
+        </TouchableOpacity>
+      )}
 
      
     </ScrollView>
   );
 }
 
+// --- Stylesheet for the Jaw-Dropping UI ---
+const TEXT_DARK = "#222"; // Used for dropdown items (since dropdown is light)
+
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, backgroundColor: "#f9f9f9" },
-  profileCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
+  container: { flexGrow: 1, padding: 25, backgroundColor: BACKGROUND_DARK },
+  // Header Style
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
     marginBottom: 20,
     position: "relative",
   },
-  username: { fontSize: 22, fontWeight: "700", color: "#222", marginTop: 8 },
-  bio: { fontSize: 14, color: "#555", marginTop: 6, textAlign: "center" },
-  bioInput: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    padding: 8,
-    fontSize: 14,
-    color: "#222",
-    marginTop: 6,
-    width: "100%",
-    textAlignVertical: "top",
-    backgroundColor: "#fafafa",
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  label: { fontSize: 14, fontWeight: "600", color: "#555", marginTop: 12 },
-  value: { fontSize: 16, color: "#222", marginTop: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    padding: 8,
-    fontSize: 16,
-    color: "#222",
-    marginTop: 4,
-    backgroundColor: "#fafafa",
-  },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#dc3545",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-  },
-  logoutText: {
-    color: "#fff",
-    fontSize: 14,
-    marginLeft: 6,
-    fontWeight: "600",
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: TEXT_LIGHT,
   },
   settingsBtnTop: {
-    position: "absolute",
-    right: 20,
-    top: 20,
-    backgroundColor: "#f0f0f0",
-    padding: 8,
-    borderRadius: 20,
+    backgroundColor: CARD_DARK,
+    padding: 10,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "#333",
   },
+  // Profile Card
+  profileCard: {
+    backgroundColor: CARD_DARK,
+    borderRadius: 20,
+    padding: 30,
+    alignItems: "center",
+    shadowColor: PRIMARY_COLOR,
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 10,
+    marginBottom: 25,
+    borderBottomWidth: 5,
+    borderColor: PRIMARY_COLOR + "40", // Subtle border glow
+  },
+  username: { fontSize: 28, fontWeight: "700", color: TEXT_LIGHT, marginTop: 15 },
+  joinedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+    marginBottom: 10,
+    backgroundColor: "#2A2A2A",
+    borderRadius: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  joinedText: {
+    fontSize: 12,
+    color: TEXT_MUTED,
+    marginLeft: 5,
+  },
+  bio: { fontSize: 16, color: TEXT_MUTED, marginTop: 10, textAlign: "center", lineHeight: 22 },
+  bioInput: {
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 16,
+    color: TEXT_LIGHT,
+    marginTop: 15,
+    width: "100%",
+    textAlignVertical: "top",
+    backgroundColor: "#2A2A2A",
+    minHeight: 80,
+  },
+
+  // Info Card
+  card: {
+    backgroundColor: CARD_DARK,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+    marginBottom: 25,
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#333",
+  },
+  infoContent: {
+    flex: 1,
+    marginLeft: 15,
+  },
+  iconBackground: {
+    backgroundColor: "#3A3A3A",
+    padding: 10,
+    borderRadius: 15,
+  },
+  label: { fontSize: 13, fontWeight: "500", color: PRIMARY_COLOR },
+  value: { fontSize: 17, color: TEXT_LIGHT, marginTop: 2, fontWeight: "600" },
+  input: {
+    borderWidth: 1,
+    borderColor: TEXT_MUTED,
+    borderRadius: 8,
+    padding: 8,
+    fontSize: 17,
+    color: TEXT_LIGHT,
+    marginTop: 4,
+    backgroundColor: BACKGROUND_DARK,
+    width: "100%",
+  },
+
+  // Dropdown Menu
   dropdown: {
     position: "absolute",
     top: 50,
-    right: 20,
+    right: 25, // Adjusted to be flush with the button's right edge
     backgroundColor: "#fff",
-    borderRadius: 10,
+    borderRadius: 12,
     paddingVertical: 5,
-    paddingHorizontal: 10,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 10,
     zIndex: 100,
   },
   dropdownItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
   },
   dropdownText: {
-    fontSize: 14,
-    color: "#333",
+    fontSize: 15,
+    color: TEXT_DARK,
+    marginLeft: 10,
   },
+
+  // Save Button
   saveBtn: {
-    marginTop: 20,
-    backgroundColor: "#007BFF",
-    paddingVertical: 10,
-    borderRadius: 10,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 10,
+    shadowColor: PRIMARY_COLOR,
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 8,
   },
-  saveText: { color: "#fff", fontWeight: "600" },
+  saveText: {
+    color: CARD_DARK,
+    fontWeight: "700",
+    fontSize: 18,
+    marginLeft: 8,
+  },
+
+  // Logout Button
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#dc3545", // Red for warning/exit
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "#ff6b6b",
+  },
+  logoutText: {
+    color: TEXT_LIGHT,
+    fontSize: 16,
+    marginLeft: 8,
+    fontWeight: "600",
+  },
 });

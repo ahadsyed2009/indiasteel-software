@@ -4,7 +4,9 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  StyleSheet
+  StyleSheet,
+  Alert,
+  ScrollView,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -12,7 +14,7 @@ const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
 const lineTotal = (it) => n(it.itemQty) * n(it.itemPrice);
 const orderTotal = (items) => (items || []).reduce((s, it) => s + lineTotal(it), 0);
 
-export default function Step3({ 
+export default function Step3({
   items,
   customerName,
   customerPhone,
@@ -24,8 +26,8 @@ export default function Step3({
   onBack,
   onSubmit,
 }) {
-  const [discount, setDiscount] = useState("");
-  const [discountType, setDiscountType] = useState("%"); // "%" or "₹"
+  const [discount, setDiscount] = useState(orderToEdit?.discount?.toString() || "");
+  const [discountType, setDiscountType] = useState(orderToEdit?.discountType || "%");
 
   const formatMoney = (v) => (Number(v) || 0).toFixed(2);
 
@@ -33,103 +35,138 @@ export default function Step3({
   const transportCost = n(transport);
   const totalBeforeDiscount = subtotal + transportCost;
 
-  const discountValue = discountType === "%"
-    ? (totalBeforeDiscount * n(discount)) / 100
-    : n(discount);
+  const discountValue =
+    discountType === "%"
+      ? (totalBeforeDiscount * n(discount)) / 100
+      : n(discount);
 
   const finalTotal = Math.max(totalBeforeDiscount - discountValue, 0);
 
+  // ✅ Handle order submission with discount data included
+  const handleSubmit = () => {
+    if (n(discount) < 0) {
+      Alert.alert("Invalid Discount", "Discount cannot be negative.");
+      return;
+    }
+
+    const orderData = {
+      items,
+      customerName,
+      customerPhone,
+      place,
+      transport: transportCost,
+      driverName,
+      paymentMethod,
+      discount: discount || "0",
+      discountType,
+      createdAtMs: orderToEdit?.createdAtMs || Date.now(),
+    };
+
+    onSubmit(orderData); // send full data to parent
+  };
+
   return (
-    <View style={{ flex: 1, padding: 12 }}>
-      {/* Order Items */}
-      <View>
-        <Text>Order Items</Text>
+    <ScrollView style={styles.stepContent}>
+      {/* -------- Order Items -------- */}
+      <View style={styles.reviewCard}>
+        <Text style={styles.reviewSectionTitle}>Order Items</Text>
         {items.map((it) => (
-          <View key={it.id}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text>
+          <View key={it.id} style={styles.reviewItem}>
+            <View style={styles.reviewItemHeader}>
+              <Text style={styles.reviewItemName}>
                 {it.itemName === "Other" ? it.customName : it.itemName}
                 {it.diameter ? ` (${it.diameter})` : ""}
               </Text>
-              <Text>₹{formatMoney(lineTotal(it))}</Text>
+              <Text style={styles.reviewItemTotal}>₹{formatMoney(lineTotal(it))}</Text>
             </View>
-            <Text>
+            <Text style={styles.reviewItemDetails}>
               {it.companyName} • Qty: {it.itemQty} • ₹{formatMoney(it.itemPrice)}/unit
             </Text>
           </View>
         ))}
       </View>
 
-      {/* Customer Information */}
-      <View>
-        <Text>Customer Information</Text>
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <Text>Name</Text>
-          <Text>{customerName}</Text>
+      {/* -------- Customer Info -------- */}
+      <View style={styles.reviewCard}>
+        <Text style={styles.reviewSectionTitle}>Customer Information</Text>
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewLabel}>Name</Text>
+          <Text style={styles.reviewValue}>{customerName}</Text>
         </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <Text>Phone</Text>
-          <Text>{customerPhone}</Text>
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewLabel}>Phone</Text>
+          <Text style={styles.reviewValue}>{customerPhone}</Text>
         </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <Text>Place</Text>
-          <Text>{place}</Text>
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewLabel}>Place</Text>
+          <Text style={styles.reviewValue}>{place}</Text>
         </View>
         {driverName ? (
-          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <Text>Driver</Text>
-            <Text>{driverName}</Text>
+          <View style={styles.reviewRow}>
+            <Text style={styles.reviewLabel}>Driver</Text>
+            <Text style={styles.reviewValue}>{driverName}</Text>
           </View>
         ) : null}
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <Text>Payment</Text>
-          <Text>{paymentMethod}</Text>
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewLabel}>Payment</Text>
+          <Text style={styles.reviewValue}>{paymentMethod}</Text>
         </View>
       </View>
 
-      {/* Order Summary */}
-      <View>
-        <Text>Order Summary</Text>
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+      {/* -------- Order Summary -------- */}
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Order Summary</Text>
+        <View style={styles.summaryRow}>
           <Text>Subtotal</Text>
           <Text>₹{subtotal.toFixed(2)}</Text>
         </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <View style={styles.summaryRow}>
           <Text>Transport</Text>
           <Text>₹{transportCost.toFixed(2)}</Text>
         </View>
 
         {/* Discount Input */}
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryRow}>
           <Text>Discount</Text>
-          <TextInput
-            value={discount}
-            onChangeText={setDiscount}
-            placeholder="0"
-            keyboardType="numeric"
-            style={{ marginLeft: 8, borderWidth: 1, padding: 4, width: 80 }}
-          />
-          <TouchableOpacity onPress={() => setDiscountType(discountType === "%" ? "₹" : "%")}>
-            <Text>{discountType}</Text>
-          </TouchableOpacity>
+          <View style={styles.discountContainer}>
+            <TextInput
+              value={discount}
+              onChangeText={setDiscount}
+              placeholder="0"
+              keyboardType="numeric"
+              style={styles.discountInput}
+            />
+            <TouchableOpacity
+              onPress={() => setDiscountType(discountType === "%" ? "₹" : "%")}
+              style={styles.discountTypeButton}
+            >
+              <Text style={styles.discountTypeText}>{discountType}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <Text>Total Amount: ₹{finalTotal.toFixed(2)}</Text>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryRow}>
+          <Text style={styles.totalLabel}>Total Amount</Text>
+          <Text style={styles.totalValue}>₹{finalTotal.toFixed(2)}</Text>
+        </View>
       </View>
 
-      {/* Buttons */}
-      <View style={{ flexDirection: "row", marginTop: 12 }}>
-        <TouchableOpacity onPress={onBack} style={{ flex: 1, marginRight: 8, backgroundColor: "#ccc", padding: 12, alignItems: "center" }}>
-          <Text>← Back</Text>
+      {/* -------- Buttons -------- */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onSubmit} style={{ flex: 1, marginLeft: 8, backgroundColor: "#007bff", padding: 12, alignItems: "center" }}>
-          <Text style={{ color: "#fff" }}>{orderToEdit ? "Update Order" : "Place Order"}</Text>
+        <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
+          <Text style={styles.submitButtonText}>
+            {orderToEdit ? "Update Order" : "Place Order"}
+          </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
-
 
 const styles = StyleSheet.create({
   stepContent: {
@@ -180,7 +217,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   reviewLabel: {
     fontSize: 14,
@@ -191,17 +228,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#111827",
-  },
-  paymentBadge: {
-    backgroundColor: "#DBEAFE",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  paymentBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#1E40AF",
   },
   summaryCard: {
     backgroundColor: "#FFFFFF",

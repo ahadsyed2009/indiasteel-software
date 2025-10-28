@@ -108,64 +108,74 @@ export default function CustomerDetails({ route, navigation }) {
       .catch((error) => console.error("Error updating status:", error));
   };
 
-  // ---- Share PDF ----
-  const shareOrderPDF = async (order) => {
-    const { subTotal, transport, discountValue, grandTotal } = computeOrderTotals(order);
+  // ---- Share PDF: per order ----
+// ---- Share PDF: per order ----
+const shareOrderPDF = async (order) => {
+  const { subTotal, transport, discountValue, grandTotal } = computeOrderTotals(order);
 
-    const html = `
-      <html>
-        <body style="font-family:sans-serif; padding:20px;">
-          <h2 style="color:#007bff;">Order Receipt</h2>
-          <p><strong>Customer:</strong> ${order.customerName} (${order.customerPhone})</p>
-          <p><strong>Date:</strong> ${new Date(order.createdAtMs || Date.now()).toLocaleString()}</p>
-          <p><strong>Status:</strong> ${order.status || "Pending"}</p>
-          <hr/>
-          <h3>Items</h3>
-          <table border="1" cellspacing="0" cellpadding="6" width="100%">
-            <tr style="background:#f1f1f1;">
-              <th>Item</th><th>Qty</th><th>Price</th><th>Total</th>
-            </tr>
-            ${(order.items || [])
-              .map((it) => {
-                const unitPrice =
-                  it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
-                const itemLabel = it.itemName === "Other" ? it.customName : it.itemName;
-                const brandLabel = it.companyName ? ` (${it.companyName})` : "";
-                const diameterLabel = it.diameter ? ` - ${it.diameter}` : "";
-                return `
-                  <tr>
-                    <td>${itemLabel}${brandLabel}${diameterLabel}</td>
-                    <td>${it.itemQty}</td>
-                    <td>₹${unitPrice}</td>
-                    <td>₹${(n(it.itemQty) * unitPrice).toFixed(2)}</td>
-                  </tr>`;
-              })
-              .join("")}
-          </table>
-          <hr/>
-          <p><strong>Subtotal:</strong> ₹${subTotal.toFixed(2)}</p>
-          <p><strong>Transport:</strong> ₹${transport.toFixed(2)}</p>
-          <p><strong>Discount:</strong> ₹${discountValue.toFixed(2)} (${order.discount || 0}${
-      order.discountType || ""
-    })</p>
-          <h3 style="color:#007bff;">Final Total: ₹${grandTotal.toFixed(2)}</h3>
-          <p><strong>Payment:</strong> ${order.paymentMethod || "-"}</p>
-        </body>
-      </html>
-    `;
+  const html = `
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h2, h3 { text-align: center; }
+          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          p { margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        <h2>Order Receipt</h2>
+        <p><strong>Customer:</strong> ${order.customerName} (${order.customerPhone})</p>
+        <p><strong>Date:</strong> ${new Date(order.createdAtMs || Date.now()).toLocaleString()}</p>
+        <p><strong>Status:</strong> ${order.status || "Pending"}</p>
+        <hr/>
+        <h3>Items</h3>
+        <table>
+          <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+          ${(order.items || []).map((it) => {
+            const unitPrice = it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
+            return `
+              <tr>
+                <td>${it.itemName === "Other" ? it.customName : it.itemName} ${it.brand ? `(${it.brand})` : ""}</td>
+                <td>${it.itemQty}</td>
+                <td>₹${unitPrice}</td>
+                <td>₹${(n(it.itemQty) * unitPrice).toFixed(2)}</td>
+              </tr>`;
+          }).join("")}
+        </table>
+        <hr/>
+        <p>Subtotal: ₹${subTotal.toFixed(2)}</p>
+        <p>Transport: ₹${transport.toFixed(2)}</p>
+        <p>Discount: ₹${discountValue.toFixed(2)} (${order.discount || 0}${order.discountType || ""})</p>
+        <h3>Final: ₹${grandTotal.toFixed(2)}</h3>
+        <p><strong>Payment:</strong> ${order.paymentMethod || "-"}</p>
+      </body>
+    </html>
+  `;
 
-    try {
-      const { uri } = await Print.printToFileAsync({ html });
+  try {
+    const { uri } = await Print.printToFileAsync({ html });
+    console.log("PDF created at:", uri);
+
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
       await Sharing.shareAsync(uri, {
         mimeType: "application/pdf",
-        dialogTitle: "Share Order",
+        dialogTitle: "Share Order PDF",
         UTI: "com.adobe.pdf",
       });
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Could not generate PDF");
+    } else {
+      Alert.alert("Sharing not available", "Your device does not support file sharing.");
     }
-  };
+  } catch (err) {
+    console.error("PDF Error:", err);
+    Alert.alert("Error", "Could not generate or share PDF");
+  }
+};
+
 
   if (!primary) {
     return (

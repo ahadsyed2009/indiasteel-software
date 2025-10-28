@@ -115,11 +115,21 @@ export default function SettingsScreen() {
   };
 
   const settingsOptions = [
-    { name: "Profile", icon: "person-circle-outline", action: () => navigation.navigate("ProfileScreen"), gradient: ["#fff", "#f0f4ff"] },
-    { name: "Updates", icon: "megaphone-outline", action: () => setUpdatesVisible(true), gradient: ["#fff", "#fff5f0"] },
-    { name: "Set Price", icon: "pricetag-outline", action: () => navigation.navigate("settprice"), gradient: ["#fff", "#f0fff4"] },
-    { name: "Privacy", icon: "lock-closed-outline", action: () => setPrivacyVisible(true), gradient: ["#fff", "#fff0f6"] },
-    { name: "About", icon: "information-circle-outline", action: () => setAboutVisible(true), gradient: ["#fff", "#fffbf0"] },
+    {
+      name: "Profile",
+      icon: "person-circle-outline",
+      action: () => navigation.navigate("ProfileScreen"),
+    },
+    {
+      name: "Set Price",
+      icon: "pricetag-outline",
+      action: () => navigation.navigate("settprice"),
+    },
+    {
+      name: "About",
+      icon: "information-circle-outline",
+      action: () => setAboutVisible(true),
+    },
   ];
 
   return (

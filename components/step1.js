@@ -249,7 +249,7 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
 }
 
 const styles = StyleSheet.create({
-  stepContent: { flex: 1, padding: 20, backgroundColor: "#f9fafc" },
+  stepContent: { flex: 1, padding: 10, backgroundColor: "#f9fafc" },
   errorBanner: { flexDirection: "row", backgroundColor: "#fdecea", padding: 12, borderRadius: 12, marginBottom: 12 },
   errorIcon: { marginRight: 8 },
   errorText: { color: "#b91c1c", fontWeight: "600" },

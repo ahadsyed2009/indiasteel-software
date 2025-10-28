@@ -25,7 +25,7 @@ export default function SettPrice() {
 
   const [newCompanyName, setNewCompanyName] = useState("");
   const [type, setType] = useState("steel");
-  const [steelDetails, setSteelDetails] = useState([{ diameter: "6mm", price: "", qty: "" }]);
+  const [steelDetails, setSteelDetails] = useState([{ diameter: "6", price: "", qty: "" }]);
   const [cementPrice, setCementPrice] = useState("");
   const [cementQty, setCementQty] = useState("");
 
@@ -34,7 +34,7 @@ export default function SettPrice() {
   const [showAddForm, setShowAddForm] = useState(false);
 
   // --- Steel handlers ---
-  const addSteelRow = () => setSteelDetails([...steelDetails, { diameter: "6mm", price: "", qty: "" }]);
+  const addSteelRow = () => setSteelDetails([...steelDetails, { diameter: "6", price: "", qty: "" }]);
   const updateSteelField = (index, field, value) => {
     const updated = [...steelDetails];
     updated[index][field] = value;
@@ -42,7 +42,7 @@ export default function SettPrice() {
   };
   const removeSteelRow = (index) => {
     const updated = steelDetails.filter((_, i) => i !== index);
-    setSteelDetails(updated.length ? updated : [{ diameter: "6mm", price: "", qty: "" }]);
+    setSteelDetails(updated.length ? updated : [{ diameter: "6", price: "", qty: "" }]);
   };
 
   // --- Add company ---
@@ -135,14 +135,14 @@ export default function SettPrice() {
         {item.steelDetails && item.steelDetails.length > 0 && (
           <View style={styles.priceSection}>
             <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons name="iron" size={18} color="#6b7280" />
+              <MaterialCommunityIcons name="bolt" size={18} color="#6b7280" />
               <Text style={styles.sectionTitle}>Steel</Text>
             </View>
             {item.steelDetails.map((s, idx) => (
               <View key={idx} style={styles.priceRow}>
                 <View style={styles.priceLabel}>
                   <View style={styles.diameterBadge}>
-                    <Text style={styles.diameterText}>{s.diameter}</Text>
+                    <Text style={styles.diameterText}>{s.diameter}mm</Text>
                   </View>
                 </View>
                 <Text style={styles.priceValue}>
@@ -251,20 +251,16 @@ export default function SettPrice() {
                         )}
                       </View>
 
-                      <View style={styles.pickerWrapper}>
-                        <Picker
-                          selectedValue={s.diameter}
-                          style={styles.picker}
-                          onValueChange={(value) => updateSteelField(idx, "diameter", value)}
-                        >
-                          <Picker.Item label="6mm" value="6mm" />
-                          <Picker.Item label="8mm" value="8mm" />
-                          <Picker.Item label="10mm" value="10mm" />
-                          <Picker.Item label="12mm" value="12mm" />
-                          <Picker.Item label="16mm" value="16mm" />
-                          <Picker.Item label="20mm" value="20mm" />
-                          <Picker.Item label="25mm" value="25mm" />
-                        </Picker>
+                      <View style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 12 }}>
+                       <TextInput
+                       style={styles.inputd}
+                        placeholder="diameter"
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="numeric"
+                        value={String(s.diameter)}
+                        onChangeText={(val) => updateSteelField(idx, "diameter", val)}
+                      />
+                      <Text style={styles.inputLabeld}>mm</Text>
                       </View>
 
                       <View style={styles.rowInputs}>
@@ -411,25 +407,17 @@ export default function SettPrice() {
 
                           {editCompany.steelDetails.map((s, idx) => (
                             <View key={idx} style={styles.steelRow}>
-                              <View style={styles.pickerWrapper}>
-                                <Picker
-                                  selectedValue={s.diameter}
-                                  style={styles.picker}
-                                  onValueChange={(val) => {
-                                    const updated = [...editCompany.steelDetails];
-                                    updated[idx].diameter = val;
-                                    setEditCompany({ ...editCompany, steelDetails: updated });
-                                  }}
-                                >
-                                  <Picker.Item label="6mm" value="6mm" />
-                                  <Picker.Item label="8mm" value="8mm" />
-                                  <Picker.Item label="10mm" value="10mm" />
-                                  <Picker.Item label="12mm" value="12mm" />
-                                  <Picker.Item label="16mm" value="16mm" />
-                                  <Picker.Item label="20mm" value="20mm" />
-                                  <Picker.Item label="25mm" value="25mm" />
-                                </Picker>
-                              </View>
+                             <View style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 12 }}>
+                       <TextInput
+                       style={styles.inputd}
+                        placeholder="diameter"
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="numeric"
+                        value={String(s.diameter)}
+                        onChangeText={(val) => updateSteelField(idx, "diameter", val)}
+                      />
+                      <Text style={styles.inputLabeld}>mm</Text>
+                      </View>
 
                               <View style={styles.rowInputs}>
                                 <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
@@ -608,6 +596,12 @@ const styles = StyleSheet.create({
     color: "#374151",
     marginBottom: 8,
   },
+  inputLabeld: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
   input: {
     backgroundColor: "#f9fafb",
     padding: 14,
@@ -617,12 +611,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#1f2937",
   },
-  pickerWrapper: {
+   inputd: {
     backgroundColor: "#f9fafb",
+    padding: 14,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    overflow: "hidden",
+    fontSize: 15,
+    color: "#1f2937",
+    width: '80%',
+    marginRight: 8,
+  },
+  pickerWrapper: {
+    borderRadius: 12,
+    flexDirection: "row",
   },
   picker: {
     height: 50,
@@ -862,12 +864,7 @@ modalTitle: {
 inputGroup: {
   marginBottom: 15, // Add space between input groups
 },
-inputLabel: {
-  fontSize: 14,
-  fontWeight: '500',
-  color: '#4b5563',
-  marginBottom: 4,
-},
+
 input: {
   borderWidth: 1,
   borderColor: '#d1d5db',

@@ -18,9 +18,9 @@ import { signOut } from "firebase/auth";
 // --- Design Tokens (Consistent Branding) ---
 const PRIMARY_COLOR = "#667eea"; // A vibrant gold for accent
 const SECONDARY_COLOR = "#667eea"; // A clean blue for buttons
-const BACKGROUND_DARK = "#121212"; // Dark background
-const CARD_DARK = "#1E1E1E"; // Dark card background
-const TEXT_LIGHT = "#F5F5F5"; // Light text color
+const BACKGROUND_DARK = "#fff"; // Dark background
+const CARD_DARK = "#f9f9f9"; // Dark card background
+const TEXT_LIGHT = "#e1e1e"; // Light text color
 const TEXT_MUTED = "#B0B0B0"; // Muted text color
 
 export default function ProfileScreen() {
@@ -32,7 +32,7 @@ export default function ProfileScreen() {
   );
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("+91 9876543210");
-  const [joined, setJoined] = useState("September 2025");
+ 
   const [isEditing, setIsEditing] = useState(false);
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
@@ -117,10 +117,7 @@ export default function ProfileScreen() {
       <View style={styles.profileCard}>
         <Ionicons name="person-circle" size={120} color={PRIMARY_COLOR} />
         <Text style={styles.username}>{Username}</Text>
-        <View style={styles.joinedBadge}>
-          <Ionicons name="calendar-outline" size={14} color={TEXT_MUTED} />
-          <Text style={styles.joinedText}>Joined: {joined}</Text>
-        </View>
+        
 
         {isEditing ? (
           <TextInput
@@ -201,7 +198,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: "800",
+    fontWeight: "600",
     color: TEXT_LIGHT,
   },
   settingsBtnTop: {
@@ -209,7 +206,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: "#d3d3d3",
   },
   // Profile Card
   profileCard: {
@@ -217,16 +214,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 30,
     alignItems: "center",
-    shadowColor: PRIMARY_COLOR,
+    shadowColor: "#e1e1e",
     shadowOpacity: 0.2,
-    shadowRadius: 15,
+    shadowRadius: 7,
     shadowOffset: { width: 0, height: 5 },
-    elevation: 10,
+    elevation: 4,
     marginBottom: 25,
-    borderBottomWidth: 5,
-    borderColor: PRIMARY_COLOR + "40", // Subtle border glow
+    borderWidth: 1,
+    borderColor: "#d3d3d3",
   },
-  username: { fontSize: 28, fontWeight: "700", color: TEXT_LIGHT, marginTop: 15 },
+  username: { fontSize: 28, fontWeight: "600", color: TEXT_LIGHT, marginTop: 15 },
   joinedBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -269,23 +266,25 @@ const styles = StyleSheet.create({
     elevation: 5,
     marginBottom: 25,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: "#d3d3d3",
   },
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    borderBottomColor: "#d4d4d4",
   },
   infoContent: {
     flex: 1,
     marginLeft: 15,
   },
   iconBackground: {
-    backgroundColor: "#3A3A3A",
+    backgroundColor: "#ffff",
     padding: 10,
     borderRadius: 15,
+    borderColor:'#d3d3d3',
+    borderWidth:1,
   },
   label: { fontSize: 13, fontWeight: "500", color: PRIMARY_COLOR },
   value: { fontSize: 17, color: TEXT_LIGHT, marginTop: 2, fontWeight: "600" },

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect,useContext, } from "react";
 import {
   View,
   Text,
@@ -18,12 +18,14 @@ import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { OrderContext } from "./context";
+
 
 const { width } = Dimensions.get("window");
 
 const SettingsOption = ({ name, icon, onPress, isLogout, gradient }) => {
   const scaleAnim = new Animated.Value(1);
-
+  
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
       toValue: 0.95,
@@ -56,7 +58,7 @@ const SettingsOption = ({ name, icon, onPress, isLogout, gradient }) => {
         >
           <View style={styles.optionLeft}>
             <LinearGradient
-              colors={isLogout ? ["#ff6b6b", "#ee5a6f"] : ["#667eea", "#764ba2"]}
+              colors={isLogout ? ["#ff6b6b", "#ee5a6f"] : ["#667eea", "#667eea"]}
               style={styles.iconGradient}
             >
               <Ionicons name={icon} size={24} color="#fff" />
@@ -78,18 +80,35 @@ const SettingsOption = ({ name, icon, onPress, isLogout, gradient }) => {
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
+    const { Username } = useContext(OrderContext);
   const [aboutVisible, setAboutVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const [updatesVisible, setUpdatesVisible] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+ const [email, setEmail] = useState("");
 
-  const [userInfo, setUserInfo] = useState({
-    email: "ahadsyed2009@gmail.com",
-    shopName: "IndiaSteel",
-    phone: "+91 9876543210",
-    password: "mypassword123",
-  });
+const [userInfo, setUserInfo] = useState({
+  email: "",
+  shopName: Username,
+  phone: "+91 9876543210",
+  password: "mypassword123",
+});
 
+useEffect(() => {
+  const user = auth.currentUser;
+  if (user) setEmail(user.email);
+}, []);
+
+useEffect(() => {
+  if (email) {
+    setUserInfo((prev) => ({
+      ...prev,
+      email,
+    }));
+  }
+}, [email]);
+
+ 
   const handleLogout = () => {
     Alert.alert(
       "Confirm Logout",
@@ -118,7 +137,7 @@ export default function SettingsScreen() {
     {
       name: "Profile",
       icon: "person-circle-outline",
-      action: () => navigation.navigate("ProfileScreen"),
+      action: () => navigation.goBack(),
     },
     {
       name: "Set Price",
@@ -134,12 +153,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={["#667eea", "#764ba2", "#f093fb"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradientBackground}
-      />
+      
       
       <ScrollView 
         style={styles.scrollView} 
@@ -147,19 +161,15 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Stunning Header */}
-        <View style={styles.header}>
-          <View style={styles.headerGlow} />
-          <Text style={styles.headerTitle}>Settings</Text>
-          <Text style={styles.headerSubtitle}>Manage your preferences</Text>
-        </View>
-
+       
         {/* Profile Card */}
+   
         <LinearGradient
           colors={["rgba(255,255,255,0.95)", "rgba(255,255,255,0.85)"]}
           style={styles.profileCard}
         >
           <LinearGradient
-            colors={["#667eea", "#764ba2"]}
+            colors={["#667eea", "#667eea"]}
             style={styles.profileAvatar}
           >
             <Text style={styles.avatarText}>
@@ -173,12 +183,14 @@ export default function SettingsScreen() {
           <View style={styles.profileBadge}>
             <Ionicons name="checkmark-circle" size={20} color="#10b981" />
           </View>
+
         </LinearGradient>
+       
 
         {/* Settings Options */}
         <View style={styles.optionsContainer}>
           {settingsOptions.map((item, index) => (
-            <View key={item.name} style={{ marginBottom: 12 }}>
+            <View key={item.name} style={{ marginBottom: 12, borderColor:'#e5e7eb', borderWidth:1, borderRadius:16 }}>
               <SettingsOption
                 name={item.name}
                 icon={item.icon}
@@ -189,7 +201,7 @@ export default function SettingsScreen() {
           ))}
 
           {/* Logout Button */}
-          <View style={{ marginTop: 20 }}>
+          <View style={{ marginTop: 20,  borderColor:'#e5e7eb', borderWidth:1, borderRadius:16  }}>
             <SettingsOption
               name="Log Out"
               icon="log-out-outline"
@@ -200,66 +212,7 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      {/* Updates Modal */}
-      <Modal
-        visible={updatesVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setUpdatesVisible(false)}
-      >
-        <BlurView intensity={90} style={styles.modalOverlay}>
-          <Animated.View style={styles.modalContainer}>
-            <LinearGradient
-              colors={["#667eea", "#764ba2"]}
-              style={styles.modalHeader}
-            >
-              <Text style={styles.modalHeaderText}>🔔 Latest Updates</Text>
-              <TouchableOpacity 
-                style={styles.modalCloseIcon}
-                onPress={() => setUpdatesVisible(false)}
-              >
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            </LinearGradient>
-
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-              {[
-                "Real-time steel & cement price alerts with push notifications",
-                "AI-powered trend predictions for smarter buying decisions",
-                "Enhanced multi-company dashboard with color-coded analytics",
-                "Customizable favorite companies & price watchlist",
-                "Export daily & weekly price reports as PDF or Excel",
-                "Offline access to last viewed prices for on-site usage",
-                "Faster navigation with smooth animations & intuitive UX",
-                "Dark mode & theme customization for comfortable viewing",
-                "Integrated chat support with instant responses",
-                "New interactive charts showing historical price trends"
-              ].map((update, i) => (
-                <View key={i} style={styles.updateItem}>
-                  <LinearGradient
-                    colors={["#667eea", "#764ba2"]}
-                    style={styles.updateIcon}
-                  >
-                    <MaterialIcons name="update" size={16} color="#fff" />
-                  </LinearGradient>
-                  <Text style={styles.updateText}>{update}</Text>
-                </View>
-              ))}
-
-              <TouchableOpacity
-                onPress={() => Alert.alert("Check for Updates", "You are using the latest version.")}
-              >
-                <LinearGradient
-                  colors={["#667eea", "#764ba2"]}
-                  style={styles.primaryButton}
-                >
-                  <Text style={styles.primaryButtonText}>Check for Updates</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </ScrollView>
-          </Animated.View>
-        </BlurView>
-      </Modal>
+      
 
       {/* About Modal */}
       <Modal
@@ -270,8 +223,8 @@ export default function SettingsScreen() {
       >
         <BlurView intensity={90} style={styles.modalOverlay}>
           <Animated.View style={styles.modalContainer}>
-            <LinearGradient
-              colors={["#667eea", "#764ba2"]}
+           <LinearGradient
+              colors={["#667eea", "#667eea"]}
               style={styles.modalHeader}
             >
               <Text style={styles.modalHeaderText}>🏗️ IndiaSteel</Text>
@@ -331,76 +284,6 @@ export default function SettingsScreen() {
         </BlurView>
       </Modal>
 
-      {/* Privacy Modal */}
-      <Modal
-        visible={privacyVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPrivacyVisible(false)}
-      >
-        <BlurView intensity={90} style={styles.modalOverlay}>
-          <Animated.View style={styles.modalContainer}>
-            <LinearGradient
-              colors={["#667eea", "#764ba2"]}
-              style={styles.modalHeader}
-            >
-              <Text style={styles.modalHeaderText}>🔒 Privacy</Text>
-              <TouchableOpacity 
-                style={styles.modalCloseIcon}
-                onPress={() => setPrivacyVisible(false)}
-              >
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            </LinearGradient>
-
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.privacyItem}>
-                <Text style={styles.privacyLabel}>Email Address</Text>
-                <View style={styles.privacyValue}>
-                  <Ionicons name="mail" size={20} color="#667eea" />
-                  <Text style={styles.privacyValueText}>{userInfo.email}</Text>
-                </View>
-              </View>
-
-              <View style={styles.privacyItem}>
-                <Text style={styles.privacyLabel}>Shop Name</Text>
-                <View style={styles.privacyValue}>
-                  <Ionicons name="business" size={20} color="#667eea" />
-                  <Text style={styles.privacyValueText}>{userInfo.shopName}</Text>
-                </View>
-              </View>
-
-              <View style={styles.privacyItem}>
-                <Text style={styles.privacyLabel}>Phone Number</Text>
-                <View style={styles.privacyValue}>
-                  <Ionicons name="call" size={20} color="#667eea" />
-                  <Text style={styles.privacyValueText}>{userInfo.phone}</Text>
-                </View>
-              </View>
-
-              <View style={styles.privacyItem}>
-                <Text style={styles.privacyLabel}>Password</Text>
-                <View style={styles.passwordContainer}>
-                  <Ionicons name="key" size={20} color="#667eea" />
-                  <TextInput
-                    style={styles.passwordInput}
-                    value={userInfo.password}
-                    secureTextEntry={!showPassword}
-                    editable={false}
-                  />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Ionicons 
-                      name={showPassword ? "eye-off" : "eye"} 
-                      size={22} 
-                      color="#667eea" 
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </ScrollView>
-          </Animated.View>
-        </BlurView>
-      </Modal>
     </View>
   );
 }
@@ -408,7 +291,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#ffff",
   },
   gradientBackground: {
     position: "absolute",
@@ -423,32 +306,15 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: 40,
   },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 30,
-    alignItems: "center",
-  },
-  headerGlow: {
-    position: "absolute",
-    top: 40,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    opacity: 0.5,
-  },
+
   headerTitle: {
     fontSize: 36,
     fontWeight: "800",
-    color: "#fff",
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    color: "#",
   },
   headerSubtitle: {
     fontSize: 16,
-    color: "rgba(255,255,255,0.8)",
+    color: "#4b5563",
     marginTop: 4,
   },
   profileCard: {
@@ -463,6 +329,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 12,
+    backgroundColor: "#fff",
+    borderColor:'#e5e7eb',
+    borderWidth:1,
+    marginTop:60,
   },
   profileAvatar: {
     width: 64,
@@ -505,6 +375,7 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     paddingHorizontal: 20,
+    backgroundColor: "transparent",
   },
   optionCard: {
     flexDirection: "row",
@@ -517,6 +388,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 6,
+    backgroundColor: "#f9f9f9",
   },
   logoutCard: {
     justifyContent: "center",

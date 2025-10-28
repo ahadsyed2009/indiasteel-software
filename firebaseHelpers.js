@@ -1,12 +1,21 @@
 // firebaseHelpers.js
 import { ref, set, onValue } from "firebase/database";
-import { db, auth } from "./firebase"; // correct path
+import { db, auth } from "./firebase";
 
-// Save a new order or update existing
 export const saveUserOrder = (order) => {
   const userId = auth.currentUser.uid;
   const path = `userOrders/${userId}/${order.id}`;
-  return set(ref(db, path), order);
+
+  // ✅ Ensure defaults
+  const orderToSave = {
+    ...order,
+    customers: (order.customers || []).map((cust) => ({
+      ...cust,
+      discount: cust.discount || 0,
+    })),
+  };
+
+  return set(ref(db, path), orderToSave);
 };
 
 // Fetch all orders for the current userr

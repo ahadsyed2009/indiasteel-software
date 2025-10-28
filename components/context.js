@@ -13,7 +13,7 @@ export const OrderProvider = ({ children }) => {
   // Price states
   const [steelPrice, setSteelPrice] = useState(650);
   const [cementPrice, setCementPrice] = useState(350);
-
+  const [customers, setCustomers] = useState([]);
   // Companies default
   const [companies, setCompanies] = useState([]);
 
@@ -28,6 +28,7 @@ export const OrderProvider = ({ children }) => {
       setIsLoading(false);
       return;
     }
+
 
     const userId = auth.currentUser.uid;
     const ordersRef = ref(db, `userOrders/${userId}`);
@@ -58,7 +59,7 @@ export const OrderProvider = ({ children }) => {
 
     return () => unsubscribe();
   }, []);
-
+  
   useEffect(() => {
     if (!userId) return;
 
@@ -70,6 +71,26 @@ export const OrderProvider = ({ children }) => {
         const data = snapshot.val();
         const companiesArray = data ? Object.values(data) : [];
         setCompanies(companiesArray);
+      },
+      (error) => {
+        console.error("Error fetching companies:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [userId]);
+  
+   useEffect(() => {
+    if (!userId) return;
+
+    const customersRef = ref(db, `userOrders/${userId}/customers`);
+
+    const unsubscribe = onValue(
+      customersRef,
+      (snapshot) => {
+        const data = snapshot.val();
+        const customersArray = data ? Object.values(data) : [];
+        setCustomers(customersArray);
       },
       (error) => {
         console.error("Error fetching companies:", error);
@@ -117,6 +138,8 @@ export const OrderProvider = ({ children }) => {
         setUsername: handleSetUsername,
         isLoading,
         setIsLoading,
+        customers,
+        setCustomers,
       }}
     >
       {children}

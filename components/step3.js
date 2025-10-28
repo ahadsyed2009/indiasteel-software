@@ -8,7 +8,9 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
+import { db } from "../firebase"; // adjust path if needed
+import { ref, set } from "firebase/database";
+import { auth } from "../firebase";
 
 const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
 const lineTotal = (it) => n(it.itemQty) * n(it.itemPrice);
@@ -25,10 +27,13 @@ export default function Step3({
   orderToEdit,
   onBack,
   onSubmit,
+ discount,
+  discountType,
+  setDiscount,
+  setDiscountType,
 }) {
-  const [discount, setDiscount] = useState(orderToEdit?.discount?.toString() || "");
-  const [discountType, setDiscountType] = useState(orderToEdit?.discountType || "%");
 
+  const userId = auth.currentUser?.uid;
   const formatMoney = (v) => (Number(v) || 0).toFixed(2);
 
   const subtotal = orderTotal(items);
@@ -57,13 +62,25 @@ export default function Step3({
       transport: transportCost,
       driverName,
       paymentMethod,
-      discount: discount || "0",
+      discount,
       discountType,
       createdAtMs: orderToEdit?.createdAtMs || Date.now(),
+      finalTotal
     };
+    const newCustomer = {
+        customerName,
+        customerPhone,
+        place,
+        transport: transportCost,
+        driverName,
+        paymentMethod,
+      }
+      const Customerid = customerPhone || Date.now().toString();
+      set(ref(db, `userOrders/${userId}/customers/${Customerid}`), newCustomer);
 
     onSubmit(orderData); // send full data to parent
   };
+  console.log(discount, discountType, finalTotal);
 
   return (
     <ScrollView style={styles.stepContent}>

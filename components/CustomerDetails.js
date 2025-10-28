@@ -40,7 +40,7 @@ function computeOrderTotals(order) {
 
 // ---------------------- Component ----------------------
 export default function CustomerDetails({ route, navigation }) {
-  const { orders, setOrders } = useContext(OrderContext);
+  const { orders, setOrders, customers, setCustomers } = useContext(OrderContext);
   const customerPhoneParam = route?.params?.customerPhone;
 
   // Filter orders for this customer
@@ -81,7 +81,9 @@ export default function CustomerDetails({ route, navigation }) {
         text: "Delete",
         style: "destructive",
         onPress: () => {
-          const userId = auth.currentUser.uid;
+          const userId = auth.currentUser?.uid;
+          if (!userId) return;
+
           const orderRef = ref(db, `userOrders/${userId}/${id}`);
           remove(orderRef)
             .then(() => {
@@ -93,12 +95,49 @@ export default function CustomerDetails({ route, navigation }) {
     ]);
   };
 
+  // ---- Delete customer ----
+  const deleteCustomer = (customerId) => {
+    Alert.alert("Delete", "Delete this customer and all their orders?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const userId = auth.currentUser?.uid;
+            if (!userId) return;
+
+            const customerRef = ref(db, `userOrders/${userId}/customers/${customerId}`);
+            await remove(customerRef);
+
+            // Delete all their orders too
+            const customerOrderIds = orders
+              .filter((o) => o.customerPhone === customerId)
+              .map((o) => o.id);
+
+            for (const id of customerOrderIds) {
+              await remove(ref(db, `userOrders/${userId}/${id}`));
+            }
+
+            setCustomers((prev) => prev.filter((c) => c.id !== customerId));
+            setOrders((prev) => prev.filter((o) => o.customerPhone !== customerId));
+
+            navigation.goBack();
+          } catch (err) {
+            console.error("Error deleting customer:", err);
+          }
+        },
+      },
+    ]);
+  };
+
   // ---- Update order status ----
   const setStatus = (id, status) => {
-    const userId = auth.currentUser.uid;
-    const orderRef = ref(db, `userOrders/${userId}/${id}`);
+    const userId = auth.currentUser?.uid;
     const orderToUpdate = orders.find((o) => o.id === id);
-    if (!orderToUpdate) return;
+    if (!userId || !orderToUpdate) return;
+
+    const orderRef = ref(db, `userOrders/${userId}/${id}`);
     set(orderRef, { ...orderToUpdate, status })
       .then(() => {
         setOrders((prev) =>
@@ -109,73 +148,112 @@ export default function CustomerDetails({ route, navigation }) {
   };
 
   // ---- Share PDF: per order ----
-// ---- Share PDF: per order ----
-const shareOrderPDF = async (order) => {
-  const { subTotal, transport, discountValue, grandTotal } = computeOrderTotals(order);
+  const shareOrderPDF = async (order) => {
+    const { subTotal, transport, discountValue, grandTotal } = computeOrderTotals(order);
 
-  const html = `
-    <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; }
-          h2, h3 { text-align: center; }
-          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-          p { margin: 6px 0; }
-        </style>
-      </head>
-      <body>
-        <h2>Order Receipt</h2>
-        <p><strong>Customer:</strong> ${order.customerName} (${order.customerPhone})</p>
-        <p><strong>Date:</strong> ${new Date(order.createdAtMs || Date.now()).toLocaleString()}</p>
-        <p><strong>Status:</strong> ${order.status || "Pending"}</p>
-        <hr/>
-        <h3>Items</h3>
-        <table>
-          <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
-          ${(order.items || []).map((it) => {
-            const unitPrice = it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
-            return `
-              <tr>
-                <td>${it.itemName === "Other" ? it.customName : it.itemName} ${it.brand ? `(${it.brand})` : ""}</td>
-                <td>${it.itemQty}</td>
-                <td>₹${unitPrice}</td>
-                <td>₹${(n(it.itemQty) * unitPrice).toFixed(2)}</td>
-              </tr>`;
-          }).join("")}
-        </table>
-        <hr/>
-        <p>Subtotal: ₹${subTotal.toFixed(2)}</p>
-        <p>Transport: ₹${transport.toFixed(2)}</p>
-        <p>Discount: ₹${discountValue.toFixed(2)} (${order.discount || 0}${order.discountType || ""})</p>
-        <h3>Final: ₹${grandTotal.toFixed(2)}</h3>
-        <p><strong>Payment:</strong> ${order.paymentMethod || "-"}</p>
-      </body>
-    </html>
-  `;
+    const html = `
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h2, h3 { text-align: center; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            p { margin: 6px 0; }
+          </style>
+        </head>
+        <body>
+          <h2>Order Receipt</h2>
+          <p><strong>Customer:</strong> ${order.customerName} (${order.customerPhone})</p>
+          <p><strong>Date:</strong> ${new Date(order.createdAtMs || Date.now()).toLocaleString()}</p>
+          <p><strong>Status:</strong> ${order.status || "Pending"}</p>
+          <hr/>
+          <h3>Items</h3>
+          <table>
+            <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+            ${(order.items || [])
+              .map((it) => {
+                const unitPrice =
+                  it.itemName === "Other" ? n(it.customPrice) : n(it.itemPrice);
+                return `
+                  <tr>
+                    <td>${it.itemName === "Other" ? it.customName : it.itemName} ${
+                  it.brand ? `(${it.brand})` : ""
+                }</td>
+                    <td>${it.itemQty}</td>
+                    <td>₹${unitPrice}</td>
+                    <td>₹${(n(it.itemQty) * unitPrice).toFixed(2)}</td>
+                  </tr>`;
+              })
+              .join("")}
+          </table>
+          <hr/>
+          <p>Subtotal: ₹${subTotal.toFixed(2)}</p>
+          <p>Transport: ₹${transport.toFixed(2)}</p>
+          <p>Discount: ₹${discountValue.toFixed(2)} (${order.discount || 0}${
+      order.discountType || ""
+    })</p>
+          <h3>Final: ₹${grandTotal.toFixed(2)}</h3>
+          <p><strong>Payment:</strong> ${order.paymentMethod || "-"}</p>
+        </body>
+      </html>
+    `;
 
-  try {
-    const { uri } = await Print.printToFileAsync({ html });
-    console.log("PDF created at:", uri);
+    try {
+      const { uri } = await Print.printToFileAsync({ html });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          dialogTitle: "Share Order PDF",
+          UTI: "com.adobe.pdf",
+        });
+      } else {
+        Alert.alert("Sharing not available", "Your device does not support file sharing.");
+      }
+    } catch (err) {
+      console.error("PDF Error:", err);
+      Alert.alert("Error", "Could not generate or share PDF");
+    }
+  };
 
-    const canShare = await Sharing.isAvailableAsync();
-    if (canShare) {
+  // ---- Share all orders (combined PDF) ----
+  const shareAllOrdersPDF = async () => {
+    if (!customerOrders.length) return;
+
+    const htmlOrders = customerOrders
+      .map((order, index) => {
+        const { subTotal, transport, discountValue, grandTotal } = computeOrderTotals(order);
+        return `
+          <h3>Order ${index + 1}</h3>
+          <p><strong>Date:</strong> ${new Date(order.createdAtMs || Date.now()).toLocaleString()}</p>
+          <p><strong>Status:</strong> ${order.status || "Pending"}</p>
+          <p><strong>Total:</strong> ₹${grandTotal.toFixed(2)}</p>
+          <hr/>
+        `;
+      })
+      .join("");
+
+    const html = `
+      <html><body>
+        <h2>${primary.customerName} - All Orders</h2>
+        ${htmlOrders}
+      </body></html>
+    `;
+
+    try {
+      const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
         mimeType: "application/pdf",
-        dialogTitle: "Share Order PDF",
+        dialogTitle: "Share All Orders PDF",
         UTI: "com.adobe.pdf",
       });
-    } else {
-      Alert.alert("Sharing not available", "Your device does not support file sharing.");
+    } catch (err) {
+      console.error("Error generating all-orders PDF:", err);
     }
-  } catch (err) {
-    console.error("PDF Error:", err);
-    Alert.alert("Error", "Could not generate or share PDF");
-  }
-};
-
+  };
 
   if (!primary) {
     return (
@@ -198,6 +276,7 @@ const shareOrderPDF = async (order) => {
     },
     { subtotal: 0, transport: 0, discount: 0, total: 0, beforeDiscount: 0 }
   );
+  console.log("All totals:", allTotals);
 
   const customerObj = {
     id: primary.customerPhone,
@@ -206,7 +285,6 @@ const shareOrderPDF = async (order) => {
     orders: customerOrders,
   };
 
-  // ---------------------- Render ----------------------
   return (
     <View style={styles.container}>
       {/* Header Card */}
@@ -249,19 +327,8 @@ const shareOrderPDF = async (order) => {
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{primary.customerName}</Text>
               <Text style={styles.subtitle}>{primary.customerPhone}</Text>
-              
-              {/* Show totals with discount breakdown */}
-              <View style={{ marginTop: 6 }}>
-                {allTotals.discount > 0 && (
-                  <>
-                    <Text style={{ fontSize: 12, color: "#6b7280" }}>
-                      Before Discount: ₹{allTotals.beforeDiscount.toFixed(2)}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: "#ef4444", fontWeight: "600" }}>
-                      Discount: -₹{allTotals.discount.toFixed(2)}
-                    </Text>
-                  </>
-                )}
+
+              <View style={{ marginTop: 5 }}>
                 <Text style={{ fontSize: 14, fontWeight: "700", color: "#16a34a", marginTop: 2 }}>
                   Total: ₹{allTotals.total.toFixed(2)}
                 </Text>
@@ -270,10 +337,11 @@ const shareOrderPDF = async (order) => {
           )}
         </View>
 
-        {/* Header actions */}
+        {/* Header Actions */}
         <View style={styles.headerActions}>
+          <View style={{ flexDirection: "row", marginBottom: 8 }}>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#28a745" }]}
+            style={[styles.actionBtn, { backgroundColor: "#28a745",marginRight:10, }]}
             onPress={() => navigation.navigate("NewOrder", { customer: customerObj })}
           >
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
@@ -281,9 +349,17 @@ const shareOrderPDF = async (order) => {
 
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: "#17a2b8" }]}
-            onPress={() => Alert.alert("Feature Coming Soon", "Share all orders PDF")}
+            onPress={shareAllOrdersPDF}
           >
             <Ionicons name="share-social-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+          </View>
+          <View style={{ flexDirection: "row", }}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: "#FF3B30",marginRight:10, }]}
+            onPress={() => deleteCustomer(primary.customerPhone)}
+          >
+            <MaterialIcons name="delete-outline" size={20} color="#fff" />
           </TouchableOpacity>
 
           {!editing && (
@@ -298,18 +374,16 @@ const shareOrderPDF = async (order) => {
               <Feather name="edit-3" size={18} color="#fff" />
             </TouchableOpacity>
           )}
+          </View>
         </View>
       </View>
 
-      {/* Orders list */}
+      {/* Orders List */}
       <FlatList
-        data={[...customerOrders].sort(
-          (a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0)
-        )}
+        data={[...customerOrders].sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0))}
         keyExtractor={(it) => it.id.toString()}
         renderItem={({ item }) => {
-          const { subTotal, transport, discountValue, grandTotal } =
-            computeOrderTotals(item);
+          const { subTotal, transport, discountValue, grandTotal } = computeOrderTotals(item);
           const status = item.status || "Pending";
 
           return (
@@ -321,7 +395,6 @@ const shareOrderPDF = async (order) => {
                 <Text style={{ fontWeight: "700" }}>₹{grandTotal.toFixed(2)}</Text>
               </View>
 
-              {/* Status Chips */}
               <View style={styles.statusRow}>
                 {["Pending", "In Progress", "Complete"].map((opt) => {
                   const active = status === opt;
@@ -343,15 +416,12 @@ const shareOrderPDF = async (order) => {
                       style={[styles.statusChip, active && chipStyle]}
                       onPress={() => setStatus(item.id, opt)}
                     >
-                      <Text style={[styles.statusChipText, active && textStyle]}>
-                        {opt}
-                      </Text>
+                      <Text style={[styles.statusChipText, active && textStyle]}>{opt}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              {/* Items */}
               <View style={{ marginTop: 8 }}>
                 {(item.items || []).map((it, idx) => {
                   const unitPrice =
@@ -379,7 +449,6 @@ const shareOrderPDF = async (order) => {
                 })}
               </View>
 
-              {/* Totals */}
               <View style={{ marginTop: 8 }}>
                 <Text>Subtotal: ₹{subTotal.toFixed(2)}</Text>
                 <Text>Transport: ₹{transport.toFixed(2)}</Text>
@@ -394,13 +463,14 @@ const shareOrderPDF = async (order) => {
                     </Text>
                   </>
                 )}
+                
+
                 <Text style={{ fontWeight: "700", fontSize: 15, marginTop: 4 }}>
                   Final: ₹{grandTotal.toFixed(2)}
                 </Text>
                 <Text>Payment: {item.paymentMethod || "-"}</Text>
               </View>
 
-              {/* Actions */}
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={[styles.iconBtn, { backgroundColor: "#007bff" }]}
@@ -465,7 +535,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   saveBtn: { backgroundColor: "#28a745", padding: 8, borderRadius: 6 },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerActions: { alignItems: "center" },
   actionBtn: {
     width: 40,
     height: 40,

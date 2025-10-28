@@ -32,6 +32,9 @@ export default function NewOrder({ navigation, route }) {
   const [paymentMethod, setPaymentMethod] = useState(orderToEdit?.paymentMethod || "");
   const [items, setItems] = useState(orderToEdit?.items?.length ? orderToEdit.items.map(i => ({ ...i })) : []);
   const [isPaid, setIsPaid] = useState(orderToEdit?.isPaid || false);
+  const [discount, setDiscount] = useState(orderToEdit?.discount || 0);
+const [discountType, setDiscountType] = useState(orderToEdit?.discountType || "%"); // or "percent"
+
 
   const [step, setStep] = useState(1);
 
@@ -59,7 +62,13 @@ export default function NewOrder({ navigation, route }) {
 
     const subtotal = orderTotal(items);
     const transportCost = n(transport);
-    const finalTotal = subtotal + transportCost;
+  const discountValue =
+  discountType === "percent"
+    ? (subtotal * discount) / 100
+    : discount;
+
+const finalTotal = subtotal + transportCost - discountValue;
+
 
     if (orderToEdit) {
       setOrders((prev) =>
@@ -78,7 +87,9 @@ export default function NewOrder({ navigation, route }) {
                 finalTotal, 
                 createdAtMs: o.createdAtMs || Date.now(), 
                 status: o.status, 
-                isPaid 
+                isPaid,
+                discount,
+                discountType 
               }
             : o
         )
@@ -96,7 +107,9 @@ export default function NewOrder({ navigation, route }) {
         finalTotal, 
         createdAtMs: orderToEdit.createdAtMs || Date.now(), 
         status: orderToEdit.status, 
-        isPaid 
+        isPaid ,
+        discount,
+        discountType
       }).catch((err) => Alert.alert("Firebase Error", err.message));
     } else {
       const newOrder = {
@@ -113,6 +126,8 @@ export default function NewOrder({ navigation, route }) {
         createdAtMs: Date.now(),
         status: "Pending",
         isPaid,
+        discount,
+        discountType
       };
       setOrders((prev) => [...prev, newOrder]);
       saveUserOrder(newOrder).catch((err) => Alert.alert("Firebase Error", err.message));
@@ -222,18 +237,23 @@ const Stepper = () => {
           )}
 
           {step === 3 && (
-            <Step3
-              items={items}
-              customerName={customerName}
-              customerPhone={customerPhone}
-              place={place}
-              transport={transport}
-              driverName={driverName}
-              paymentMethod={paymentMethod}
-              orderToEdit={orderToEdit}
-              onBack={() => setStep(2)}
-              onSubmit={submit}
-            />
+           <Step3
+  items={items}
+  customerName={customerName}
+  customerPhone={customerPhone}
+  place={place}
+  transport={transport}
+  driverName={driverName}
+  paymentMethod={paymentMethod}
+  orderToEdit={orderToEdit}
+  discount={discount}
+  setDiscount={setDiscount}
+  discountType={discountType}
+  setDiscountType={setDiscountType}
+  onBack={() => setStep(2)}
+  onSubmit={submit}
+/>
+
           )}
         </ScrollView>
       </View>

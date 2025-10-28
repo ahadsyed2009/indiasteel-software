@@ -26,7 +26,7 @@ const orderTotal = (o) =>
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { orders, Username, isLoading } = useContext(OrderContext);
+  const { orders, Username, isLoading,customers } = useContext(OrderContext);
   // --- Search state is now actively used in the UI ---
   const [search, setSearch] = useState(""); 
 
@@ -57,7 +57,7 @@ export default function HomeScreen() {
     0
   );
   const pending = validOrders.filter((o) => o.status === "Pending").length;
-  const totalCustomers = groupedCustomers.length;
+  const totalCustomers = customers.length;
 
   const filtered = useMemo(() => {
     if (!search) return groupedCustomers;
@@ -382,6 +382,8 @@ const styles = StyleSheet.create({
     flexDirection: "row", 
     flexWrap: "wrap", 
     justifyContent: "space-between",
+    height:'auto',
+    width:'auto',
   },
 
   // JAW-DROPPING CARD STYLE
@@ -479,8 +481,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   custAvatar: { 
-    width: 48, // Slightly smaller
-    height: 48, 
+    width: 45, // Slightly smaller
+    height: 45, 
     borderRadius: 24, 
     backgroundColor: "#4F46E5", 
     alignItems: "center", 
@@ -508,7 +510,7 @@ const styles = StyleSheet.create({
   },
   customerStats: {
     flexDirection: "row",
-    gap: 16, // Increased gap
+    gap: 14, // Increased gap
   },
   statBadge: {
     flexDirection: "row",

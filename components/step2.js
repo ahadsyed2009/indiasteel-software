@@ -1,5 +1,5 @@
 // components/Step2.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useContext, use } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { Picker } from "@react-native-picker/picker";
 import { db } from "../firebase"; // adjust path if needed
 import { ref, onValue, set } from "firebase/database";
 import { auth } from "../firebase";
+import { OrderContext} from "./context";
 
 const paymentOptions = ["Cash", "Credit", "UPI"];
 
@@ -31,8 +32,9 @@ export default function Step2({
   onNext,
   onBack,
 }) {
+  const { customers, setCustomers } = useContext(OrderContext)
   const [step2Errors, setStep2Errors] = useState({});
-  const [customers, setCustomers] = useState([]);
+ 
   const userId = auth.currentUser?.uid;
   // Fetch existing customers
   useEffect(() => {
@@ -45,23 +47,26 @@ export default function Step2({
   }, []);
 
   // 🔍 Auto-fill if name or phone matches
-  useEffect(() => {
-    if (!customerName && !customerPhone) return;
-    const foundCustomer = customers.find(
-      (c) =>
-        c.customerName?.toLowerCase() === customerName?.toLowerCase() ||
-        c.customerPhone === customerPhone
-    );
-    if (foundCustomer) {
-      setCustomerName(foundCustomer.customerName);
-      setCustomerPhone(foundCustomer.customerPhone);
-      setPlace(foundCustomer.place || "");
-      setPaymentMethod(foundCustomer.paymentMethod || "");
-      setTransport(foundCustomer.transport || "");
-      setDriverName(foundCustomer.driverName || "");
-    }
-  }, [customerName, customerPhone]);
 
+
+ console.log("Step2 Customers:", transport);
+   useEffect(() => {
+  if (!customerName && !customerPhone) return;
+  const foundCustomer = customers.find(
+    (c) =>
+      c.customerName?.toLowerCase() === customerName?.toLowerCase() ||
+      c.customerPhone === customerPhone
+  );
+  if (foundCustomer) {
+    setCustomerName(foundCustomer.customerName);
+    setCustomerPhone(foundCustomer.customerPhone);
+    setPlace(foundCustomer.place || "");
+    setPaymentMethod(foundCustomer.paymentMethod || "");
+    // ✅ Added safeguard below
+    if (!transport) setTransport(foundCustomer.transport || "");
+    setDriverName(foundCustomer.driverName || "");
+  }
+}, [customerName, customerPhone]);
   // 🚀 Validate and continue
   const handleNext = async () => {
     let errors = {};
@@ -82,7 +87,6 @@ export default function Step2({
 
     // If not existing, save new customer
     if (!existingCustomer) {
-      const id = customerPhone || Date.now().toString();
       const newCustomer = {
         customerName,
         customerPhone,
@@ -92,7 +96,6 @@ export default function Step2({
         paymentMethod,
         createdAt: new Date().toISOString(),
       };
-      await set(ref(db, `userOrders/${userId}/customers/${id}`), newCustomer);
       Alert.alert("✅ New customer added");
     } else {
       console.log("Customer already exists, using existing data");
@@ -161,8 +164,11 @@ export default function Step2({
           <Text style={styles.inputLabel}>Transport Cost</Text>
           <TextInput
             placeholder="Enter transport cost (₹)"
-            style={styles.textInput}
-            value={transport}
+            style={[
+              styles.textInput,
+              step2Errors.customerPhone && styles.inputError,
+            ]}
+            value={String(transport)}
             onChangeText={setTransport}
             keyboardType="numeric"
             placeholderTextColor="#9CA3AF"
@@ -246,6 +252,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#111827",
     backgroundColor: "#FFFFFF",
+    marginBottom: 5, 
   },
   inputError: { borderColor: "#EF4444" },
   fieldError: {

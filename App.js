@@ -8,7 +8,6 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
 // Your existing screens
-import WelcomeScreen from "./components/WelcomeScreen";
 import HomeScreen from "./components/HomeScreen";
 import NewOrder from "./components/NewOrder";
 import CustomerDetails from "./components/CustomerDetails";
@@ -52,10 +51,7 @@ export default function App() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {user ? (
             <>
-              <Stack.Screen
-                name="WelcomeScreen"
-                component={WelcomeScreen}
-              />
+              
               <Stack.Screen
                 name="Home"
                 component={HomeScreen}

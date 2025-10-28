@@ -1,3 +1,4 @@
+// components/Login.js
 import React, { useState, useContext } from "react";
 import {
   View,
@@ -15,7 +16,7 @@ import { OrderContext } from "./context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen() {
   const { Username, setUsername } = useContext(OrderContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,11 +27,11 @@ export default function LoginScreen({ navigation }) {
     try {
       setLoading(true);
       await loginUser(email, password);
-      setLoading(false);
-      navigation.replace("Home"); // ✅ navigate safely after login
+      // ✅ No navigation needed — App.js handles redirect after auth
     } catch (error) {
-      setLoading(false);
       Alert.alert("Login Failed", error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -38,11 +39,11 @@ export default function LoginScreen({ navigation }) {
     try {
       setLoading(true);
       await registerUser(email, password);
-      setLoading(false);
-      navigation.replace("Home"); // ✅ after register, go to home
+      // ✅ Same: automatic redirect
     } catch (error) {
-      setLoading(false);
       Alert.alert("Registration Failed", error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -92,7 +93,6 @@ export default function LoginScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Login Button */}
       <TouchableOpacity
         onPress={handleLogin}
         style={styles.buttonWrapper}
@@ -112,7 +112,6 @@ export default function LoginScreen({ navigation }) {
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* Register Button */}
       <TouchableOpacity
         onPress={handleRegister}
         style={styles.buttonWrapper}

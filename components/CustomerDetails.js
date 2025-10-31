@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  Switch,
 } from "react-native";
 import { OrderContext } from "./context";
 import * as Print from "expo-print";
@@ -457,12 +458,13 @@ export default function CustomerDetails({ route, navigation }) {
                     <Text style={{ color: "#6b7280" }}>
                       Before Discount: ₹{(subTotal + transport).toFixed(2)}
                     </Text>
-                    <Text style={{ color: "#ef4444", fontWeight: "600" }}>
+                    <Text style={{ color: "#008000", fontWeight: "600" }}>
                       Discount: -₹{discountValue.toFixed(2)} ({item.discount || 0}
                       {item.discountType || ""})
                     </Text>
                   </>
                 )}
+
                 
 
                 <Text style={{ fontWeight: "700", fontSize: 15, marginTop: 4 }}>
@@ -470,6 +472,31 @@ export default function CustomerDetails({ route, navigation }) {
                 </Text>
                 <Text>Payment: {item.paymentMethod || "-"}</Text>
               </View>
+                  <View style={styles.paymentRow}>
+  <Switch
+    value={item.paymentStatus === "Paid"}
+    onValueChange={(val) => {
+      const status = val ? "Paid" : "Pending";
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      const orderRef = ref(db, `userOrders/${userId}/${item.id}`);
+      set(orderRef, { ...item, paymentStatus: status })
+        .then(() => {
+          setOrders((prev) =>
+            prev.map((o) => (o.id === item.id ? { ...o, paymentStatus: status } : o))
+          );
+        })
+        .catch((err) => console.error("Error updating payment status:", err));
+    }}
+    trackColor={{ false: "#ccc", true: "#16a34a" }}
+    thumbColor="#fff"
+  />
+  <Text style={{ fontWeight: "600", marginLeft: 6 }}>
+    {item.paymentStatus === "Paid" ? "Paid" : "Unpaid"}
+  </Text>
+</View>
+
 
               <View style={styles.actions}>
                 <TouchableOpacity
@@ -583,4 +610,10 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   iconBtn: { padding: 8, borderRadius: 6, marginLeft: 8 },
+  paymentRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginTop: 8,
+},
+
 });

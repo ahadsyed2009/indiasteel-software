@@ -36,6 +36,7 @@ function computeOrderTotals(order) {
   })();
 
   const grandTotal = Math.max(subTotal + transport - discountValue, 0);
+  
   return { subTotal, transport, discountValue, grandTotal };
 }
 

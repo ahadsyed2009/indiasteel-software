@@ -59,16 +59,17 @@ const [discountType, setDiscountType] = useState(orderToEdit?.discountType || "%
     if (!customerName || !customerPhone || !place || !paymentMethod || items.length === 0) {
       return Alert.alert("Error", "Please fill all details before placing the order");
     }
+   const subtotal = orderTotal(items);
+const transportCost = n(transport);
 
-    const subtotal = orderTotal(items);
-    const transportCost = n(transport);
-  const discountValue =
-  discountType === "percent"
-    ? (subtotal * discount) / 100
-    : discount;
+const preDiscountTotal = subtotal + transportCost;
 
-const finalTotal = subtotal + transportCost - discountValue;
+const discountValue =
+  discountType === "%"
+    ? (preDiscountTotal * n(discount)) / 100
+    : n(discount);
 
+const finalTotal = preDiscountTotal - discountValue;
 
     if (orderToEdit) {
       setOrders((prev) =>
@@ -89,7 +90,8 @@ const finalTotal = subtotal + transportCost - discountValue;
                 status: o.status, 
                 isPaid,
                 discount,
-                discountType 
+                discountType,
+                discountValue
               }
             : o
         )
@@ -109,7 +111,8 @@ const finalTotal = subtotal + transportCost - discountValue;
         status: orderToEdit.status, 
         isPaid ,
         discount,
-        discountType
+        discountType,
+        discountValue
       }).catch((err) => Alert.alert("Firebase Error", err.message));
     } else {
       const newOrder = {
@@ -127,7 +130,8 @@ const finalTotal = subtotal + transportCost - discountValue;
         status: "Pending",
         isPaid,
         discount,
-        discountType
+        discountType,
+        discountValue
       };
       setOrders((prev) => [...prev, newOrder]);
       saveUserOrder(newOrder).catch((err) => Alert.alert("Firebase Error", err.message));

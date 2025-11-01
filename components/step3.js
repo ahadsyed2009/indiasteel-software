@@ -8,9 +8,8 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
-import { db } from "../firebase"; // adjust path if needed
+import { db, auth } from "../firebase";
 import { ref, set } from "firebase/database";
-import { auth } from "../firebase";
 
 const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
 const lineTotal = (it) => n(it.itemQty) * n(it.itemPrice);
@@ -55,6 +54,7 @@ export default function Step3({
     }
 
     const orderData = {
+      id: orderToEdit?.id || Date.now().toString(),
       items,
       customerName,
       customerPhone,
@@ -65,20 +65,19 @@ export default function Step3({
       discount,
       discountType,
       createdAtMs: orderToEdit?.createdAtMs || Date.now(),
-      finalTotal
+      finalTotal,
+      userId: auth.currentUser?.uid,
     };
-    const newCustomer = {
-        customerName,
-        customerPhone,
-        place,
-        transport: transportCost,
-        driverName,
-        paymentMethod,
-      }
-      const Customerid = customerPhone || Date.now().toString();
-      set(ref(db, `userOrders/${userId}/customers/${Customerid}`), newCustomer);
 
-    onSubmit(orderData); // send full data to parent
+    const userId = auth.currentUser?.uid;
+    if (userId) {
+      // write customer record (top-level) + user index
+      const Customerid = customerPhone || Date.now().toString();
+      set(ref(db, `customers/${Customerid}`), { ...orderData, id: Customerid, userId });
+      set(ref(db, `users/${userId}/customers/${Customerid}`), true);
+    }
+
+    onSubmit(orderData);
   };
   console.log(discount, discountType, finalTotal);
 

@@ -82,22 +82,24 @@ export default function CustomerDetails({ route, navigation }) {
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => {
-          const userId = auth.currentUser?.uid;
-          if (!userId) return;
-
-          const orderRef = ref(db, `userOrders/${userId}/${id}`);
-          remove(orderRef)
-            .then(() => {
-              setOrders((prev) => prev.filter((o) => o.id !== id));
-            })
-            .catch((error) => console.error("Error deleting order:", error));
+        onPress: async () => {
+          try {
+            const userId = auth.currentUser?.uid;
+            if (!userId) return;
+            // remove top-level order + user index
+            await Promise.all([
+              remove(ref(db, `orders/${id}`)),
+              remove(ref(db, `users/${userId}/orders/${id}`)),
+            ]);
+            setOrders((prev) => prev.filter((o) => o.id !== id));
+          } catch (error) {
+            console.error("Error deleting order:", error);
+          }
         },
       },
     ]);
   };
 
-  // ---- Delete customer ----
   const deleteCustomer = (customerId) => {
     Alert.alert("Delete", "Delete this customer and all their orders?", [
       { text: "Cancel", style: "cancel" },
@@ -109,21 +111,26 @@ export default function CustomerDetails({ route, navigation }) {
             const userId = auth.currentUser?.uid;
             if (!userId) return;
 
-            const customerRef = ref(db, `userOrders/${userId}/customers/${customerId}`);
-            await remove(customerRef);
+            // remove customer record and user index
+            await Promise.all([
+              remove(ref(db, `customers/${customerId}`)),
+              remove(ref(db, `users/${userId}/customers/${customerId}`)),
+            ]);
 
-            // Delete all their orders too
+            // remove all their orders
             const customerOrderIds = orders
               .filter((o) => o.customerPhone === customerId)
               .map((o) => o.id);
 
             for (const id of customerOrderIds) {
-              await remove(ref(db, `userOrders/${userId}/${id}`));
+              await Promise.all([
+                remove(ref(db, `orders/${id}`)),
+                remove(ref(db, `users/${userId}/orders/${id}`)),
+              ]);
             }
 
             setCustomers((prev) => prev.filter((c) => c.id !== customerId));
             setOrders((prev) => prev.filter((o) => o.customerPhone !== customerId));
-
             navigation.goBack();
           } catch (err) {
             console.error("Error deleting customer:", err);
@@ -133,18 +140,14 @@ export default function CustomerDetails({ route, navigation }) {
     ]);
   };
 
-  // ---- Update order status ----
   const setStatus = (id, status) => {
     const userId = auth.currentUser?.uid;
     const orderToUpdate = orders.find((o) => o.id === id);
     if (!userId || !orderToUpdate) return;
-
-    const orderRef = ref(db, `userOrders/${userId}/${id}`);
+    const orderRef = ref(db, `orders/${id}`);
     set(orderRef, { ...orderToUpdate, status })
       .then(() => {
-        setOrders((prev) =>
-          prev.map((o) => (o.id === id ? { ...o, status } : o))
-        );
+        setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
       })
       .catch((error) => console.error("Error updating status:", error));
   };

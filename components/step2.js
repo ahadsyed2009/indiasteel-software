@@ -9,9 +9,8 @@ import {
   Alert,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
-import { db } from "../firebase"; // adjust path if needed
-import { ref, onValue, set } from "firebase/database";
-import { auth } from "../firebase";
+import { ref, onValue, query, orderByChild, equalTo } from "firebase/database";
+import { db, auth } from "../firebase";
 import { OrderContext} from "./context";
 
 const paymentOptions = ["Cash", "Credit", "UPI"];
@@ -35,11 +34,12 @@ export default function Step2({
   const { customers, setCustomers } = useContext(OrderContext)
   const [step2Errors, setStep2Errors] = useState({});
  
-  const userId = auth.currentUser?.uid;
   // Fetch existing customers
   useEffect(() => {
-    const customersRef = ref(db, `userOrders/${userId}/customers`);
-    const unsubscribe = onValue(customersRef, (snapshot) => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+    const customersQ = query(ref(db, `customers`), orderByChild("userId"), equalTo(userId));
+    const unsubscribe = onValue(customersQ, (snapshot) => {
       const data = snapshot.val() || {};
       setCustomers(Object.values(data));
     });

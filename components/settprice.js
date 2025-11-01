@@ -51,7 +51,7 @@ export default function SettPrice() {
     if (companies.find((c) => c.name === newCompanyName.trim()))
       return Alert.alert("Error", "Company already exists");
 
-    let newCompany = { id: Date.now().toString(), name: newCompanyName.trim(), type };
+    let newCompany = { id: Date.now().toString(), name: newCompanyName.trim(), type, userId };
 
     if (type === "steel" || type === "both") {
       if (!steelDetails.every((s) => s.price && s.qty))
@@ -72,7 +72,7 @@ export default function SettPrice() {
     resetForm();
     setShowAddForm(false);
 
-    const newCompanyRef = ref(db, `userOrders/${userId}/companies/${newCompany.id}`);
+    const newCompanyRef = ref(db, `companies/${newCompany.id}`);
     set(newCompanyRef, newCompany).catch((err) => console.error("Error saving company:", err));
   };
 
@@ -93,7 +93,7 @@ export default function SettPrice() {
         style: "destructive",
         onPress: () => {
           setCompanies(companies.filter((c) => c.id !== company.id));
-          const companyRef = ref(db, `userOrders/${userId}/companies/${company.id}`);
+          const companyRef = ref(db, `companies/${company.id}`);
           remove(companyRef).catch((err) => console.error("Error deleting company:", err));
         },
       },

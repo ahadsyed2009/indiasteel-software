@@ -3,7 +3,7 @@ import React, { useContext, useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
-  TextInput, // <-- We'll use this now!
+  TextInput,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -18,53 +18,69 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { OrderContext } from "./context";
 
-// --- Existing Helper Functions (Kept as is) ---
 const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
 const itemTotal = (it) => n(it.itemQty) * n(it.itemPrice);
-const orderTotal = (o) =>
-  (o?.items || []).reduce((s, it) => s + itemTotal(it), 0);
+const orderTotal = (o) => (o?.items || []).reduce((s, it) => s + itemTotal(it), 0);
+
+// ⚡ Get timestamp for start of this month
+const getMonthStart = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+};
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { orders, Username, isLoading,customers } = useContext(OrderContext);
-  // --- Search state is now actively used in the UI ---
-  const [search, setSearch] = useState(""); 
+  const { orders, Username, isLoading, customers } = useContext(OrderContext);
+  const [search, setSearch] = useState("");
 
-  // --- Existing Logic (Kept as is) ---
+  // ⚡ Filter orders for current month only
+  const monthStart = getMonthStart();
+  const monthlyOrders = useMemo(() => {
+    return (orders || []).filter((o) => {
+      if (!o || !o.createdAtMs) return false;
+      return o.createdAtMs >= monthStart;
+    });
+  }, [orders]);
+
+  // ⚡ Grouped Customers (for this month)
   const groupedCustomers = useMemo(() => {
     const map = new Map();
-    (orders || []).forEach((o) => {
+    (monthlyOrders || []).forEach((o) => {
       if (!o || !o.customerPhone) return;
-
       const customerId = o.customerPhone;
       const customerName = o.customerName || "Unknown";
-
       if (!map.has(customerId)) {
         map.set(customerId, { id: customerId, customerName, customerPhone: customerId, orders: [] });
       }
       map.get(customerId).orders.push(o);
     });
     return Array.from(map.values());
-  }, [orders]);
+  }, [monthlyOrders]);
 
-  const validOrders = (orders || []).filter(
+  const validOrders = (monthlyOrders || []).filter(
+    (o) => Array.isArray(o.items) && o.items.length > 0
+  );
+   const validpendings = (orders || []).filter(
     (o) => Array.isArray(o.items) && o.items.length > 0
   );
 
+  // ⚡ Monthly Stats
   const totalOrders = validOrders.length;
   const totalSales = validOrders.reduce((sum, o) => {
-  const orderSum = Number(o.finalTotal) || orderTotal(o);
-  return sum + orderSum;
-}, 0);
-
-console.log("Total Sales Debug:", {
-  totalSales,
-  ordersCount: validOrders.length,
-  firstOrder: validOrders[0],
-});
-
-  const pending = validOrders.filter((o) => o.status === "Pending").length;
+    const orderSum = Number(o.finalTotal) || orderTotal(o);
+    return sum + orderSum;
+  }, 0);
+ const pending = validpendings.filter((o) => o.status === "Pending").length;
   const totalCustomers = customers.length;
+
+
+  console.log("Monthly Stats Debug:", {
+    totalOrders,
+    totalSales,
+    pending,
+    totalCustomers,
+    ordersCount: validOrders.length,
+  });
 
   const filtered = useMemo(() => {
     if (!search) return groupedCustomers;
@@ -82,33 +98,33 @@ console.log("Total Sales Debug:", {
       const lastB = Math.max(...b.orders.map((o) => o.createdAtMs || 0));
       return lastB - lastA;
     })
-    .slice(0, 4); // Increased to 4 to better fill the screen
+    .slice(0, 4);
 
-  // Dashboard cards (Kept as is)
+  // Dashboard cards now show monthly stats ⚡
   const dashboardData = [
     { 
-      label: "Total Orders", 
+      label: "Total Orders ", 
       value: totalOrders, 
       icon: "receipt-outline",
       color: "#4F46E5",
       bgColor: "#EEF2FF"
     },
     { 
-      label: "Total Sales", 
+      label: "Total Sales ", 
       value: `₹${totalSales.toLocaleString()}`, 
       icon: "trending-up-outline",
       color: "#059669",
       bgColor: "#ECFDF5"
     },
     { 
-      label: "Pending", 
+      label: "Pending ", 
       value: pending, 
       icon: "time-outline",
       color: "#F59E0B",
       bgColor: "#FEF3C7"
     },
     { 
-      label: "Customers", 
+      label: "Customers ", 
       value: totalCustomers, 
       icon: "people-outline",
       color: "#2678dcff",
@@ -116,15 +132,12 @@ console.log("Total Sales Debug:", {
     },
   ];
 
-  // Call customer (Kept as is)
   const callCustomer = (phone) => {
     if (!phone) {
       Alert.alert("Error", "No phone number available");
       return;
     }
-
     const url = `tel:${phone}`;
-
     Linking.openURL(url).catch(() => {
       Alert.alert("Error", "Cannot open phone dialer. Try on a real device.");
     });
@@ -139,12 +152,10 @@ console.log("Total Sales Debug:", {
     );
   }
 
-  // --- START OF JAW-DROPPING UI IMPLEMENTATION ---
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      {/* Header */}
+
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.avatarIcon}>
@@ -155,43 +166,29 @@ console.log("Total Sales Debug:", {
             <Text style={styles.appName}>{Username}</Text>
           </View>
         </View>
-        <TouchableOpacity 
-          onPress={() => navigation.navigate("ProfileScreen")}
-          style={styles.profileBtn}
-        >
+        <TouchableOpacity onPress={() => navigation.navigate("ProfileScreen")} style={styles.profileBtn}>
           <Ionicons name="person-circle-outline" size={32} color="#4F46E5" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent} // Added scroll view styling
-      >
-
-       
-
-        {/* Dashboard Cards - Reworked for better visual hierarchy */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.dashboardSection}>
-          <Text style={styles.sectionTitle}>Dashboard Overview</Text>
+          <Text style={styles.sectionTitle}>This Month's Overview</Text>
           <View style={styles.dashboardContainer}>
             {dashboardData.map((card, idx) => (
-              // Using the new 'jawDroppingCard' style
-              <View key={idx} style={styles.jawDroppingCard}>
-                {/* The main card body */}
+              <View key={idx} style={styles.Card}>
                 <View style={styles.cardBody}>
                   <View style={[styles.iconContainer, { backgroundColor: card.color, marginBottom: 0 }]}>
                     <Ionicons name={card.icon} size={20} color="#fff" />
                   </View>
                   <Text style={[styles.cardLabel, { color: card.color }]}>{card.label}</Text>
                 </View>
-                {/* Prominent Value */}
                 <Text style={styles.cardValueProminent}>{card.value}</Text>
               </View>
             ))}
           </View>
         </View>
 
-        {/* Recent Customers Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Customers</Text>
           <TouchableOpacity onPress={() => navigation.navigate("AllCustomers")}>
@@ -209,12 +206,13 @@ console.log("Total Sales Debug:", {
                 (sum, o) => sum + (o.finalTotal ?? orderTotal(o)),
                 0
               );
-              
               return (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.customerCard}
-                  onPress={() => navigation.navigate("CustomerDetails", { customerPhone: item.customerPhone })}
+                  onPress={() =>
+                    navigation.navigate("CustomerDetails", { customerPhone: item.customerPhone })
+                  }
                   activeOpacity={0.7}
                 >
                   <View style={styles.customerLeft}>
@@ -231,10 +229,7 @@ console.log("Total Sales Debug:", {
                           <Ionicons name="cart-outline" size={12} color="#6B7280" />
                           <Text style={styles.statText}>{item.orders.length} orders</Text>
                         </View>
-                        <View style={styles.statBadge}>
-                          <Ionicons name="cash-outline" size={12} color="#6B7280" />
-                          <Text style={styles.statText}>₹{n(totalSpent).toLocaleString()}</Text>
-                        </View>
+                      
                       </View>
                     </View>
                   </View>
@@ -266,27 +261,23 @@ console.log("Total Sales Debug:", {
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="people-outline" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyText}>No customers found</Text>
-              <Text style={styles.emptySubtext}>Try a different search term</Text>
+              <Text style={styles.emptyText}>No customers found this month</Text>
+              <Text style={styles.emptySubtext}>Try adding a new order</Text>
             </View>
           )}
         </View>
 
-        {/* Bottom Spacing */}
-        <View style={{ height: 120 }} /> 
+        <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Floating Add Button (FAB) */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => navigation.navigate("NewOrder")}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate("NewOrder")} activeOpacity={0.8}>
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>
   );
 }
+
+
 
 const styles = StyleSheet.create({
   container: { 
@@ -394,7 +385,7 @@ const styles = StyleSheet.create({
   },
 
   // JAW-DROPPING CARD STYLE
-  jawDroppingCard: { 
+  Card: { 
     width: "48%",
     backgroundColor: "#fff", // Set background to white for contrast
     padding: 16,
@@ -407,14 +398,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 5,
     justifyContent: "space-between",
-    height: 120, // Fixed height for consistency
+    // Fixed height for consistency
   },
   cardBody: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+   
     gap: 8,
     marginBottom: 8,
+    paddingBottom: 4,
   },
   iconContainer: {
     width: 32, // Slightly smaller icon container
@@ -431,6 +423,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.05)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
+    
   },
   cardLabel: { 
     fontSize: 14, 

@@ -140,8 +140,8 @@ useEffect(() => {
       action: () => navigation.goBack(),
     },
     {
-      name: "Set Price",
-      icon: "pricetag-outline",
+      name: "Create Item",
+      icon: "add-circle-outline",
       action: () => navigation.navigate("settprice"),
     },
     {

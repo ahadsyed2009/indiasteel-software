@@ -3,11 +3,12 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View, Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { OrderProvider } from "./components/context";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
-// Your existing screens
+// Screens
 import HomeScreen from "./components/HomeScreen";
 import NewOrder from "./components/NewOrder";
 import CustomerDetails from "./components/CustomerDetails";
@@ -16,27 +17,44 @@ import ProfileScreen from "./components/ProfileScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import LoginScreen from "./components/Login";
 import settprice from "./components/settprice";
-
-// Step screens
 import Step1 from "./components/step1";
 import Step2 from "./components/step2";
 import Step3 from "./components/step3";
+import OnboardingScreen from "./components/OnboardingScreen";
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isFirstLaunch, setIsFirstLaunch] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return unsubscribe;
+    const initializeApp = async () => {
+      try {
+        const launchedBefore = await AsyncStorage.getItem("hasLaunched");
+        if (launchedBefore === null) {
+          await AsyncStorage.setItem("hasLaunched", "true");
+          setIsFirstLaunch(true);
+        } else {
+          setIsFirstLaunch(false);
+        }
+      } catch (err) {
+        console.log("Error checking first launch:", err);
+      }
+
+      // Firebase Auth listener
+      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+        setLoading(false);
+      });
+      return unsubscribe;
+    };
+
+    initializeApp();
   }, []);
 
-  if (loading) {
+  if (loading || isFirstLaunch === null) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#007BFF" />
@@ -45,17 +63,18 @@ export default function App() {
     );
   }
 
+  // Show onboarding if first launch
+  if (isFirstLaunch) {
+    return <OnboardingScreen onFinish={() => setIsFirstLaunch(false)} />;
+  }
+
   return (
     <OrderProvider>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {user ? (
             <>
-              
-              <Stack.Screen
-                name="Home"
-                component={HomeScreen}
-              />
+              <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen
                 name="AllCustomers"
                 component={AllCustomers}
@@ -103,10 +122,7 @@ export default function App() {
               />
             </>
           ) : (
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-            />
+            <Stack.Screen name="Login" component={LoginScreen} />
           )}
         </Stack.Navigator>
       </NavigationContainer>

@@ -100,45 +100,58 @@ export default function CustomerDetails({ route, navigation }) {
     ]);
   };
 
-  const deleteCustomer = (customerId) => {
-    Alert.alert("Delete", "Delete this customer and all their orders?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const userId = auth.currentUser?.uid;
-            if (!userId) return;
-
-            // remove customer record and user index
-            await Promise.all([
-              remove(ref(db, `customers/${customerId}`)),
-              remove(ref(db, `users/${userId}/customers/${customerId}`)),
-            ]);
-
-            // remove all their orders
-            const customerOrderIds = orders
-              .filter((o) => o.customerPhone === customerId)
-              .map((o) => o.id);
-
-            for (const id of customerOrderIds) {
-              await Promise.all([
-                remove(ref(db, `orders/${id}`)),
-                remove(ref(db, `users/${userId}/orders/${id}`)),
-              ]);
-            }
-
-            setCustomers((prev) => prev.filter((c) => c.id !== customerId));
-            setOrders((prev) => prev.filter((o) => o.customerPhone !== customerId));
-            navigation.goBack();
-          } catch (err) {
-            console.error("Error deleting customer:", err);
+ const deleteCustomer = (customerId) => {
+  Alert.alert("Delete", "Delete this customer and all their orders?", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Delete",
+      style: "destructive",
+      onPress: async () => {
+        try {
+          const userId = auth.currentUser?.uid;
+          if (!userId) {
+            console.error("No user is currently logged in.");
+            return;
           }
-        },
+
+          // 🔧 FIX: Create the same composite key used when creating the customer
+          const phoneKey = (customerId || "").replace(/\D/g, "") || Date.now().toString();
+          const compositeCustomerId = `${userId}_${phoneKey}`;
+
+          console.log(`Attempting to delete customer with ID: ${compositeCustomerId}`);
+
+          // Remove customer record and user index using the composite key
+          await Promise.all([
+            remove(ref(db, `customers/${compositeCustomerId}`)), // ✅ Use composite key
+            remove(ref(db, `users/${userId}/customers/${compositeCustomerId}`)), // ✅ Use composite key
+          ]);
+          console.log(`Successfully deleted customer ${compositeCustomerId} from database.`);
+
+          // Remove all their orders (using phone to filter orders)
+          const customerOrderIds = orders
+            .filter((o) => o.customerPhone === customerId)
+            .map((o) => o.id);
+
+          console.log(`Found orders to delete: ${customerOrderIds}`);
+          for (const id of customerOrderIds) {
+            await Promise.all([
+              remove(ref(db, `orders/${id}`)),
+              remove(ref(db, `users/${userId}/orders/${id}`)),
+            ]);
+            console.log(`Successfully deleted order ${id} from database.`);
+          }
+
+          setCustomers((prev) => prev.filter((c) => c.customerPhone !== customerId));
+          setOrders((prev) => prev.filter((o) => o.customerPhone !== customerId));
+          navigation.goBack();
+        } catch (err) {
+          console.error("Error deleting customer:", err);
+          Alert.alert("Error", "Failed to delete customer. Please try again.");
+        }
       },
-    ]);
-  };
+    },
+  ]);
+};
 
   const setStatus = (id, status) => {
     const userId = auth.currentUser?.uid;
@@ -361,12 +374,11 @@ export default function CustomerDetails({ route, navigation }) {
           </View>
           <View style={{ flexDirection: "row", }}>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#FF3B30",marginRight:10, }]}
-            onPress={() => deleteCustomer(primary.customerPhone)}
-          >
-            <MaterialIcons name="delete-outline" size={20} color="#fff" />
-          </TouchableOpacity>
-
+  style={[styles.actionBtn, { backgroundColor: "#FF3B30", marginRight: 10 }]}
+  onPress={() => deleteCustomer(primary.customerPhone)}
+>
+  <MaterialIcons name="delete-outline" size={20} color="#fff" />
+</TouchableOpacity>
           {!editing && (
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: "#007bff" }]}

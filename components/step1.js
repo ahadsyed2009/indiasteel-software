@@ -113,14 +113,14 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
         {/* Company Picker for Steel/Cement */}
         {newItem.itemName && newItem.itemName !== "Other" && (
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Company</Text>
+            <Text style={styles.inputLabel}>Item</Text>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={newItemCompany}
                 onValueChange={setNewItemCompany}
                 style={styles.picker}
               >
-                <Picker.Item label="Select Company" value="" />
+                <Picker.Item label="Select Item" value="" />
                 {(companies || [])
                   .filter((c) => {
                     if (newItem.itemName === "Steel") return c.steelDetails?.length > 0;

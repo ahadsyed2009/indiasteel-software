@@ -96,7 +96,7 @@ export default function Step2({
         paymentMethod,
         createdAt: new Date().toISOString(),
       };
-      Alert.alert("✅ New customer added");
+      
     } else {
       console.log("Customer already exists, using existing data");
     }

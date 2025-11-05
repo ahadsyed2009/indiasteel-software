@@ -68,12 +68,24 @@ export default function Step3({
       finalTotal,
       userId: auth.currentUser?.uid,
     };
+    const customerData = {
+      customerName,
+      customerPhone,
+      place,
+      driverName,
+      transport: transportCost,
+      paymentMethod,
+      userId,
+    }
 
-    const userId = auth.currentUser?.uid;
+    // use already-declared top-level userId, and create a per-user stable customer id
     if (userId) {
+      // sanitize phone to digits (fallback to timestamp if empty)
+      const phoneKey = (customerPhone || "").replace(/\D/g, "") || Date.now().toString();
+      const Customerid = `${userId}_${phoneKey}`; // stable per-user id for the customer
+
       // write customer record (top-level) + user index
-      const Customerid = customerPhone || Date.now().toString();
-      set(ref(db, `customers/${Customerid}`), { ...orderData, id: Customerid, userId });
+      set(ref(db, `customers/${Customerid}`), { ...customerData, id: Customerid, userId });
       set(ref(db, `users/${userId}/customers/${Customerid}`), true);
     }
 

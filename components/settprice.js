@@ -187,14 +187,14 @@ export default function SettPrice() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Company Prices</Text>
+            <Text style={styles.title}>Create Item</Text>
             <Text style={styles.subtitle}>Manage your suppliers and pricing</Text>
           </View>
           <TouchableOpacity
             style={styles.addHeaderBtn}
             onPress={() => setShowAddForm(!showAddForm)}
           >
-            <Ionicons name={showAddForm ? "close" : "add-circle"} size={28} color="#007bff" />
+            <Ionicons name={showAddForm ? "close-circle-outline" : "add-circle-outline"} size={28} color="#007bff" />
           </TouchableOpacity>
         </View>
 
@@ -204,7 +204,7 @@ export default function SettPrice() {
             <View style={styles.addContainer}>
               <View style={styles.formHeader}>
                 <MaterialCommunityIcons name="briefcase-plus" size={24} color="#007bff" />
-                <Text style={styles.formTitle}>Add New Company</Text>
+                <Text style={styles.formTitle}>Add New Item</Text>
               </View>
 
               <View style={styles.inputGroup}>
@@ -246,7 +246,7 @@ export default function SettPrice() {
                         <Text style={styles.steelRowTitle}>Diameter {idx + 1}</Text>
                         {steelDetails.length > 1 && (
                           <TouchableOpacity onPress={() => removeSteelRow(idx)}>
-                            <Ionicons name="close-circle" size={24} color="#ef4444" />
+                            <Ionicons name="close-circle-outline" size={24} color="#ef4444" />
                           </TouchableOpacity>
                         )}
                       </View>
@@ -342,8 +342,8 @@ export default function SettPrice() {
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.addBtn} onPress={addCompany}>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  <Text style={styles.addBtnText}>Add Company</Text>
+                  <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+                  <Text style={styles.addBtnText}>Create</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -353,9 +353,7 @@ export default function SettPrice() {
         {/* Company List */}
         {companies.length === 0 ? (
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="office-building-outline" size={64} color="#d1d5db" />
-            <Text style={styles.emptyTitle}>No Companies Added</Text>
-            <Text style={styles.emptySubtitle}>Add your first supplier to get started</Text>
+            <Text style={styles.emptySubtitle}>Nothing</Text>
           </View>
         ) : (
           <FlatList
@@ -381,7 +379,7 @@ export default function SettPrice() {
                         setEditCompany(null);
                       }}
                     >
-                      <Ionicons name="close-circle" size={28} color="#6b7280" />
+                      <Ionicons name="close-circle-outline" size={28} color="#6b7280" />
                     </TouchableOpacity>
                   </View>
 
@@ -625,9 +623,14 @@ const styles = StyleSheet.create({
   pickerWrapper: {
     borderRadius: 12,
     flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
   },
   picker: {
     height: 50,
+    flex: 1,
+    color: "#1f2937", 
+    
   },
   groupBox: {
     backgroundColor: "#f9fafb",
@@ -861,97 +864,17 @@ modalTitle: {
   fontWeight: '700',
   color: '#1f2937', // Dark text color
 },
-inputGroup: {
-  marginBottom: 15, // Add space between input groups
-},
 
-input: {
-  borderWidth: 1,
-  borderColor: '#d1d5db',
-  borderRadius: 8,
-  paddingVertical: 10,
-  paddingHorizontal: 12,
-  fontSize: 16,
-  color: '#1f2937',
-  backgroundColor: '#f9fafb', // Light background for the input field
-},
-rowInputs: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-},
-groupBox: {
-  padding: 15,
-  backgroundColor: '#f7f7f7', // Slightly off-white background for grouping
-  borderRadius: 12,
-  marginBottom: 20,
-  borderLeftWidth: 4,
-  borderLeftColor: '#007bff', // Accent color on the left
-},
-groupBoxHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: 10,
-},
-groupTitle: {
-  fontSize: 16,
-  fontWeight: '600',
-  color: '#007bff',
-  marginLeft: 8,
-},
-steelRow: {
-  marginBottom: 15,
-  borderBottomWidth: 1,
-  borderBottomColor: '#eee',
-  paddingBottom: 10,
-},
-pickerWrapper: {
-  borderWidth: 1,
-  borderColor: '#d1d5db',
-  borderRadius: 8,
-  marginBottom: 10,
-  overflow: 'hidden', // Ensures picker border is respected
-},
-picker: {
-  height: 40,
-  width: '100%',
-},
-formActions: {
-  flexDirection: 'row',
-  justifyContent: 'flex-end',
-  marginTop: 20,
-  borderTopWidth: 1,
-  borderTopColor: '#f0f0f0',
-  paddingTop: 15,
-},
-cancelBtn: {
-  paddingVertical: 12,
-  paddingHorizontal: 20,
-  borderRadius: 8,
-  marginRight: 10,
-  borderWidth: 1,
-  borderColor: '#d1ddff', // Light blue border
-},
-cancelBtnText: {
-  color: '#007bff',
-  fontWeight: '600',
-  fontSize: 16,
-},
-addBtn: { // Used for Save Changes
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#007bff',
-  paddingVertical: 12,
-  paddingHorizontal: 20,
-  borderRadius: 8,
-},
-addBtnText: {
-  color: '#fff',
-  fontWeight: '600',
-  fontSize: 16,
-  marginLeft: 5,
-},
-
+emptyState: {
+    flex: 1,
+    alignItems: "center", 
+    justifyContent: "center",
+    
+  },
+emptySubtitle: {
+    fontSize: 16,
+    color: "#9ca3af",
+  },
 
 
 });

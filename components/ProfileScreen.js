@@ -28,7 +28,7 @@ export default function ProfileScreen() {
   const { Username } = useContext(OrderContext);
 
   const [bio, setBio] = useState(
-    "Welcome to IndiaSteel 🏗️ — your trusted partner in building materials..."
+    `Welcome to ${Username}  — your trusted partner in building materials...`
   );
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("+91 9876543210");

@@ -103,14 +103,14 @@ export default function HomeScreen() {
   // Dashboard cards now show monthly stats ⚡
   const dashboardData = [
     { 
-      label: "Total Orders ", 
+      label: "Total Orders \n(This month) ", 
       value: totalOrders, 
       icon: "receipt-outline",
       color: "#4F46E5",
       bgColor: "#EEF2FF"
     },
     { 
-      label: "Total Sales ", 
+      label: "Total Sales \n(This month) ", 
       value: `₹${totalSales.toLocaleString()}`, 
       icon: "trending-up-outline",
       color: "#059669",
@@ -173,7 +173,7 @@ export default function HomeScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.dashboardSection}>
-          <Text style={styles.sectionTitle}>This Month's Overview</Text>
+          <Text style={styles.sectionTitle}>Overview</Text>
           <View style={styles.dashboardContainer}>
             {dashboardData.map((card, idx) => (
               <View key={idx} style={styles.Card}>

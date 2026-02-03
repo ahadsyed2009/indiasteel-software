@@ -19,7 +19,6 @@ export const OrderProvider = ({ children }) => {
 
   const [Username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [shopType, setShopType] = useState("construction"); // Default to construction
 
   // ✅ FIXED useEffect — handles empty orders correctly
   useEffect(() => {
@@ -90,20 +89,6 @@ export const OrderProvider = ({ children }) => {
     loadUsername();
   }, []);
 
-  useEffect(() => {
-    const loadShopType = async () => {
-      try {
-        const savedShopType = await AsyncStorage.getItem("shopType");
-        if (savedShopType) {
-          setShopType(savedShopType);
-        }
-      } catch (e) {
-        console.log("Error loading shop type:", e);
-      }
-    };
-    loadShopType();
-  }, []);
-
   const handleSetUsername = async (value) => {
     setUsername(value);
     try {
@@ -130,8 +115,6 @@ export const OrderProvider = ({ children }) => {
         setIsLoading,
         customers,
         setCustomers,
-        shopType,
-        setShopType,
       }}
     >
       {children}

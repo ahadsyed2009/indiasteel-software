@@ -1,5 +1,5 @@
 // components/Step1.js
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -10,17 +10,13 @@ import {
   ScrollView,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
-import { OrderContext } from "./context";
 
 const n = (v) => (typeof v === "number" ? v : Number(v) || 0);
 const lineTotal = (it) => n(it.itemQty) * n(it.itemPrice);
 
 export default function Step1({ items = [], setItems, companies = [], onNext }) {
-  const { shopType } = useContext(OrderContext);
-  const isConstructionShop = shopType === "construction";
-  
   const [newItem, setNewItem] = useState({
-    itemName: isConstructionShop ? "" : "Other",
+    itemName: "",
     itemQty: "",
     customName: "",
     customPrice: "",
@@ -49,13 +45,11 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
 
   const addNewItem = () => {
     if (!newItem.itemName || !newItem.itemQty) return Alert.alert("Error", "Fill item details");
-    if (isConstructionShop && newItem.itemName !== "Other" && !newItemCompany) return Alert.alert("Error", "Select company");
-    if (isConstructionShop && newItem.itemName === "Steel" && !newItemDiameter) return Alert.alert("Error", "Select steel diameter");
-    if (!isConstructionShop && !newItem.customName) return Alert.alert("Error", "Enter item name");
-    if (!isConstructionShop && !newItem.customPrice) return Alert.alert("Error", "Enter price");
+    if (newItem.itemName !== "Other" && !newItemCompany) return Alert.alert("Error", "Select company");
+    if (newItem.itemName === "Steel" && !newItemDiameter) return Alert.alert("Error", "Select steel diameter");
 
     const unitPrice =
-      newItem.itemName === "Other" || !isConstructionShop
+      newItem.itemName === "Other"
         ? n(newItem.customPrice)
         : calculateUnitPrice(newItem, newItemCompany, newItemDiameter);
 
@@ -69,7 +63,7 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
     };
 
     setItems((prev) => [...prev, itemToSave]);
-    setNewItem({ itemName: isConstructionShop ? "" : "Other", itemQty: "", customName: "", customPrice: "" });
+    setNewItem({ itemName: "", itemQty: "", customName: "", customPrice: "" });
     setNewItemCompany("");
     setNewItemDiameter("");
     setStep1Error("");
@@ -100,26 +94,24 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
       <View style={styles.addItemCard}>
         <Text style={styles.cardTitle}>Add Item</Text>
 
-        {isConstructionShop && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Item Type</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={newItem.itemName}
-                onValueChange={(v) => setNewItem((c) => ({ ...c, itemName: v }))}
-                style={styles.picker}
-              >
-                <Picker.Item label="Select Item Type" value="" />
-                <Picker.Item label="Steel" value="Steel" />
-                <Picker.Item label="Cement" value="Cement" />
-                <Picker.Item label="Other" value="Other" />
-              </Picker>
-            </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Item Type</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={newItem.itemName}
+              onValueChange={(v) => setNewItem((c) => ({ ...c, itemName: v }))}
+              style={styles.picker}
+            >
+              <Picker.Item label="Select Item Type" value="" />
+              <Picker.Item label="Steel" value="Steel" />
+              <Picker.Item label="Cement" value="Cement" />
+              <Picker.Item label="Other" value="Other" />
+            </Picker>
           </View>
-        )}
+        </View>
 
         {/* Company Picker for Steel/Cement */}
-        {isConstructionShop && newItem.itemName && newItem.itemName !== "Other" && (
+        {newItem.itemName && newItem.itemName !== "Other" && (
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Item</Text>
             <View style={styles.pickerContainer}>
@@ -144,7 +136,7 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
         )}
 
         {/* Steel Diameter Picker */}
-        {isConstructionShop && newItem.itemName === "Steel" && newItemCompany && (
+        {newItem.itemName === "Steel" && newItemCompany && (
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Steel Diameter</Text>
             <View style={styles.pickerContainer}>
@@ -167,7 +159,7 @@ export default function Step1({ items = [], setItems, companies = [], onNext }) 
         )}
 
         {/* Custom Item */}
-        {(newItem.itemName === "Other" || !isConstructionShop) && (
+        {newItem.itemName === "Other" && (
           <>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Item Name</Text>

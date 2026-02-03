@@ -80,7 +80,7 @@ const SettingsOption = ({ name, icon, onPress, isLogout, gradient }) => {
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
-    const { Username, shopType } = useContext(OrderContext);
+    const { Username } = useContext(OrderContext);
   const [aboutVisible, setAboutVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const [updatesVisible, setUpdatesVisible] = useState(false);
@@ -139,11 +139,11 @@ useEffect(() => {
       icon: "person-circle-outline",
       action: () => navigation.goBack(),
     },
-    ...(shopType === "construction" ? [{
+    {
       name: "Create Item",
       icon: "add-circle-outline",
       action: () => navigation.navigate("settprice"),
-    }] : []),
+    },
     {
       name: "About",
       icon: "information-circle-outline",

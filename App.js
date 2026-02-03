@@ -1,10 +1,10 @@
 // App.js
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View, Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { OrderProvider, OrderContext } from "./components/context";
+import { OrderProvider } from "./components/context";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
@@ -21,7 +21,6 @@ import Step1 from "./components/step1";
 import Step2 from "./components/step2";
 import Step3 from "./components/step3";
 import OnboardingScreen from "./components/OnboardingScreen";
-import ShopTypeSetupScreen from "./components/ShopTypeSetupScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -29,25 +28,16 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isFirstLaunch, setIsFirstLaunch] = useState(null);
-  const [showShopTypeSetup, setShowShopTypeSetup] = useState(null);
 
   useEffect(() => {
     const initializeApp = async () => {
       try {
         const launchedBefore = await AsyncStorage.getItem("hasLaunched");
-        const shopType = await AsyncStorage.getItem("shopType");
-        
         if (launchedBefore === null) {
           await AsyncStorage.setItem("hasLaunched", "true");
           setIsFirstLaunch(true);
-          setShowShopTypeSetup(true);
-        } else if (shopType === null) {
-          // If launched before but no shop type selected, show shop type setup
-          setIsFirstLaunch(false);
-          setShowShopTypeSetup(true);
         } else {
           setIsFirstLaunch(false);
-          setShowShopTypeSetup(false);
         }
       } catch (err) {
         console.log("Error checking first launch:", err);
@@ -64,7 +54,7 @@ export default function App() {
     initializeApp();
   }, []);
 
-  if (loading || isFirstLaunch === null || showShopTypeSetup === null) {
+  if (loading || isFirstLaunch === null) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#007BFF" />
@@ -75,23 +65,7 @@ export default function App() {
 
   // Show onboarding if first launch
   if (isFirstLaunch) {
-    return (
-      <OnboardingScreen 
-        onFinish={() => {
-          setIsFirstLaunch(false);
-          setShowShopTypeSetup(true);
-        }} 
-      />
-    );
-  }
-
-  // Show shop type setup if needed
-  if (showShopTypeSetup) {
-    return (
-      <ShopTypeSetupScreen 
-        onFinish={(shopTypeId) => setShowShopTypeSetup(false)} 
-      />
-    );
+    return <OnboardingScreen onFinish={() => setIsFirstLaunch(false)} />;
   }
 
   return (
@@ -102,8 +76,6 @@ export default function App() {
 }
 
 function MainNavigator({ user }) {
-  const { shopType } = useContext(OrderContext);
-  
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -135,13 +107,11 @@ function MainNavigator({ user }) {
               component={SettingsScreen}
               options={{ headerShown: true, title: "Settings" }}
             />
-            {shopType === "construction" && (
-              <Stack.Screen
-                name="settprice"
-                component={settprice}
-                options={{ headerShown: true, title: "Set Price" }}
-              />
-            )}
+            <Stack.Screen
+              name="settprice"
+              component={settprice}
+              options={{ headerShown: true, title: "Set Price" }}
+            />
             <Stack.Screen
               name="Step1"
               component={Step1}
@@ -165,3 +135,4 @@ function MainNavigator({ user }) {
     </NavigationContainer>
   );
 }
+          

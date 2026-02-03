@@ -3,7 +3,8 @@ import {
   signInWithEmailAndPassword, 
   signOut 
 } from "firebase/auth";
-import { auth } from "./firebase";
+import { auth, db } from "./firebase";
+import { ref, set } from "firebase/database";
 
 // Register new user
 export const registerUser = (email, password) =>
@@ -15,3 +16,6 @@ export const loginUser = (email, password) =>
 
 // Logout
 export const logoutUser = () => signOut(auth);
+
+// NOTE: shop type management removed - handle user profiles elsewhere if needed
+
